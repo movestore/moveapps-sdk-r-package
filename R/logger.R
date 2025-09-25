@@ -65,7 +65,7 @@ logger.layout <- function(level, msg, id='', ...) {
     parsed <- lapply(list(...), function(x) if(is.null(x)) 'NULL' else x )
     msg <- do.call(sprintf, c(msg, parsed))
   }
-  sprintf("[%s] %s\n", names(level), msg)
+  sprintf("[%-7s] %s\n", names(level), msg)
 }
 
 #' Core logging function with level threshold checking
