@@ -61,7 +61,7 @@ storeToFile <- function(result, outputFile) {
 #'
 #' @return Character string containing the source file path, or empty string if
 #'   the environment variable is not set
-#' @keywords internal
+#' @export
 #' @examples
 #' \dontrun{
 #' # Assuming SOURCE_FILE environment variable is set
@@ -79,7 +79,7 @@ sourceFile <- function() {
 #'
 #' @return Character string containing the output file path, or empty string if
 #'   the environment variable is not set
-#' @keywords internal
+#' @export
 #' @examples
 #' \dontrun{
 #' # Assuming OUTPUT_FILE environment variable is set

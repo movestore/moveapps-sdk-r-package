@@ -19,4 +19,3 @@ Retrieves the source file path from the SOURCE_FILE environment variable.
 source_path <- sourceFile()
 }
 }
-\keyword{internal}

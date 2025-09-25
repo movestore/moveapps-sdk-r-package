@@ -19,4 +19,3 @@ Retrieves the output file path from the OUTPUT_FILE environment variable.
 output_path <- outputFile()
 }
 }
-\keyword{internal}
