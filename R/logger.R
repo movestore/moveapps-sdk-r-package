@@ -65,7 +65,7 @@ logger.layout <- function(level, msg, id='', ...) {
     parsed <- lapply(list(...), function(x) if(is.null(x)) 'NULL' else x )
     msg <- do.call(sprintf, c(msg, parsed))
   }
-  sprintf("[%-7s] %s\n", names(level), msg)
+  sprintf("[%-5s] %s\n", names(level), msg)
 }
 
 #' Core logging function with level threshold checking
@@ -121,8 +121,7 @@ logger.layout <- function(level, msg, id='', ...) {
 #' \code{\link{logger.warn}}, \code{\link{logger.error}}, \code{\link{logger.fatal}}
 logger.log_level <- function(msg, ..., level)
 {
-  threshold <- Sys.getenv(x = "LOG_LEVEL_SDK", "DEBUG")
-  if (level <= threshold)  {
+  if (level <= logger.threshold)  {
     message <- logger.layout(level, msg, name, ...)
     cat(message)
   }
@@ -235,3 +234,16 @@ logger.error <- function(msg, ...) {
 logger.fatal <- function(msg, ...) {
   logger.log_level(msg, ..., level = FATAL)
 }
+
+# Get the threshold from environment, default to "DEBUG" if not set
+threshold_name <- Sys.getenv(x = "LOG_LEVEL_SDK", "DEBUG")
+
+# Use get() to retrieve the named constant by string name
+logger.threshold <- tryCatch({
+  get(threshold_name, envir = .GlobalEnv)
+}, error = function(e) {
+  warning(sprintf("Invalid LOG_LEVEL_SDK value '%s', using DEBUG", threshold_name))
+  DEBUG
+})
+
+logger.info(paste('logger configured w/ threshold', names(logger.threshold)))
