@@ -1,0 +1,11 @@
+Package: moveappssdk
+Title: SDK for App Developing on MoveApps
+Version: 0.1.0
+Authors@R: 
+    person("Clemens", "Hahn", , "clemens@couchbits.com", role = c("aut", "cre"))
+Description: This package provides a comprehensive Software Development Kit (SDK) for R developers to create and deploy applications on the MoveApps platform. It offers essential tools, utilities, and standardized interfaces that streamline the development process of movement ecology applications, enabling developers to build robust data analysis workflows that can seamlessly integrate with the MoveApps ecosystem.
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
