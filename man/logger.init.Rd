@@ -7,11 +7,11 @@
 logger.init()
 }
 \value{
-No return value, called for side effects (sets global logger.threshold)
+No return value, called for side effects (sets internal logger threshold)
 }
 \description{
 Initializes the logging system by reading the log level threshold from the
-LOG_LEVEL_SDK environment variable and configuring the global logger threshold.
+LOG_LEVEL_SDK environment variable and configuring the logger threshold.
 This function should be called once at the start of your application to set up
 the logging behavior.
 }
@@ -20,9 +20,12 @@ The function performs the following initialization steps:
 \enumerate{
 \item Reads the LOG_LEVEL_SDK environment variable (defaults to "DEBUG" if not set)
 \item Attempts to resolve the environment variable value to a corresponding log level constant
-\item Sets the global logger.threshold variable that controls message filtering
+\item Sets the internal logger threshold that controls message filtering
 \item Logs an informational message confirming the configuration
 }
+
+The function searches for log level constants in the current package namespace first,
+then falls back to the global environment if needed.
 
 Valid LOG_LEVEL_SDK values are:
 \itemize{

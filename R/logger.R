@@ -121,7 +121,7 @@ logger.layout <- function(level, msg, id='', ...) {
 #' \code{\link{logger.warn}}, \code{\link{logger.error}}, \code{\link{logger.fatal}}
 logger.log_level <- function(msg, ..., level)
 {
-  if (level <= logger.threshold)  {
+  if (level <= .logger_env$threshold) {
     message <- logger.layout(level, msg, name, ...)
     cat(message)
   }
@@ -235,17 +235,18 @@ logger.fatal <- function(msg, ...) {
   logger.log_level(msg, ..., level = FATAL)
 }
 
-#' Current logging threshold
+#' Logger environment for storing configuration
 #'
-#' Global variable that stores the current logging threshold level.
-#' This variable is set by logger.init() and used by logger.log_level() to determine
-#' whether messages should be displayed.
-logger.threshold <- DEBUG  # Default threshold
+#' Internal environment to store logger configuration variables
+#' like the current threshold level. This prevents issues with
+#' locked bindings in package namespaces.
+.logger_env <- new.env(parent = emptyenv())
+.logger_env$threshold <- DEBUG  # Default threshold
 
 #' Initialize the logger with threshold from environment
 #'
 #' Initializes the logging system by reading the log level threshold from the
-#' LOG_LEVEL_SDK environment variable and configuring the global logger threshold.
+#' LOG_LEVEL_SDK environment variable and configuring the logger threshold.
 #' This function should be called once at the start of your application to set up
 #' the logging behavior.
 #'
@@ -254,9 +255,12 @@ logger.threshold <- DEBUG  # Default threshold
 #' \enumerate{
 #'   \item Reads the LOG_LEVEL_SDK environment variable (defaults to "DEBUG" if not set)
 #'   \item Attempts to resolve the environment variable value to a corresponding log level constant
-#'   \item Sets the global logger.threshold variable that controls message filtering
+#'   \item Sets the internal logger threshold that controls message filtering
 #'   \item Logs an informational message confirming the configuration
 #' }
+#'
+#' The function searches for log level constants in the current package namespace first,
+#' then falls back to the global environment if needed.
 #'
 #' Valid LOG_LEVEL_SDK values are:
 #' \itemize{
@@ -268,7 +272,7 @@ logger.threshold <- DEBUG  # Default threshold
 #'   \item "TRACE" - All messages including trace (level 9)
 #' }
 #'
-#' @return No return value, called for side effects (sets global logger.threshold)
+#' @return No return value, called for side effects (sets internal logger threshold)
 #'
 #' @note If an invalid LOG_LEVEL_SDK value is provided, the function will issue a
 #' warning and fall back to DEBUG level logging.
@@ -297,12 +301,19 @@ logger.init <- function() {
   threshold_name <- Sys.getenv(x = "LOG_LEVEL_SDK", "DEBUG")
 
   # Use get() to retrieve the named constant by string name
-  logger.threshold <<- tryCatch({
-    get(threshold_name, envir = .GlobalEnv)
+  # Try current environment first, then global environment
+  .logger_env$threshold <- tryCatch({
+    # First try to get from current environment (package namespace)
+    get(threshold_name, envir = environment())
   }, error = function(e) {
-    warning(sprintf("Invalid LOG_LEVEL_SDK value '%s', using DEBUG", threshold_name))
-    DEBUG
+    tryCatch({
+      # If not found, try global environment
+      get(threshold_name, envir = .GlobalEnv)
+    }, error = function(e2) {
+      warning(sprintf("Invalid LOG_LEVEL_SDK value '%s', using DEBUG", threshold_name))
+      DEBUG
+    })
   })
 
-  cat(paste('logger threshold set to', names(logger.threshold), '\n'))
+  cat(paste('logger threshold set to', names(.logger_env$threshold), '\n'))
 }
