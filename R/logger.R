@@ -199,22 +199,50 @@ logger.fatal <- function(msg, ...) {
   logger.log_level(msg, ..., level = FATAL)
 }
 
-#' Global logging threshold level
+#' Initialize logger configuration
 #'
-#' Determines the minimum log level that will be displayed. Messages with levels
-#' higher than this threshold will be suppressed. The value is read from the
-#' LOG_LEVEL_SDK environment variable, defaulting to TRACE if not set.
+#' Initializes the logger by setting the logging threshold based on the
+#' LOG_LEVEL_SDK environment variable. If the environment variable is not set,
+#' defaults to "DEBUG" level.
 #'
-#' @details The threshold uses numeric comparison where lower numbers represent
-#' higher priority levels. For example:
+#' @details
+#' This function should be called once at the beginning of your application to
+#' configure the logging system. It reads the LOG_LEVEL_SDK environment variable
+#' to determine the minimum log level that will be displayed. Valid log levels
+#' (in order of increasing verbosity) are:
 #' \itemize{
-#'   \item FATAL (1) - highest priority
-#'   \item ERROR (2)
-#'   \item WARN (4)
-#'   \item INFO (6)
-#'   \item DEBUG (8)
-#'   \item TRACE (9) - lowest priority
+#'   \item FATAL (1) - Critical errors that may cause termination
+#'   \item ERROR (2) - Error conditions that don't necessarily terminate the app
+#'   \item WARN (4) - Warning conditions that should be addressed
+#'   \item INFO (6) - General informational messages
+#'   \item DEBUG (8) - Detailed information for debugging
+#'   \item TRACE (9) - Very detailed diagnostic information
 #' }
 #'
-#' @seealso Environment variable LOG_LEVEL_SDK for configuration
-logger.threshold = Sys.getenv(x = "LOG_LEVEL_SDK", TRACE)
+#' @return No return value, called for side effects (sets logger.threshold)
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Initialize logger with default DEBUG level
+#' logger.init()
+#'
+#' # Set environment variable before initialization
+#' Sys.setenv(LOG_LEVEL_SDK = "INFO")
+#' logger.init()
+#'
+#' # Now only INFO level and above messages will be displayed
+#' logger.debug("This won't be shown")  # Won't display
+#' logger.info("This will be shown")    # Will display
+#' }
+#'
+#' @seealso
+#' \code{\link{logger.trace}}, \code{\link{logger.debug}}, \code{\link{logger.info}},
+#' \code{\link{logger.warn}}, \code{\link{logger.error}}, \code{\link{logger.fatal}}
+#'
+#' @note The logger.threshold variable should be properly declared and accessible
+#' within the logger's scope for this function to work correctly.
+logger.init <- function() {
+  logger.threshold = Sys.getenv(x = "LOG_LEVEL_SDK", "DEBUG")
+}
