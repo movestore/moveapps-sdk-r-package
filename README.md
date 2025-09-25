@@ -4,5 +4,6 @@
 
 ```
 R
+> devtools::check()
 > devtools::document(".")
 ```

@@ -16,8 +16,8 @@ Logs a message at the FATAL level, used for very severe error events that
 might lead the application to abort or terminate.
 }
 \examples{
-logger.fatal("Critical system error: \%s", system_error)
-logger.fatal("Application cannot continue due to: \%s", fatal_condition)
+logger.fatal("Critical system error: \%s", "low resources")
+logger.fatal("Application cannot continue due to: \%s", "panic")
 
 }
 \seealso{

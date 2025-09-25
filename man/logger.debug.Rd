@@ -17,7 +17,7 @@ typically only of interest when diagnosing problems.
 }
 \examples{
 logger.debug("Processing item \%d of \%d", 5, 10)
-logger.debug("Current state: \%s", current_state)
+logger.debug("Current state: \%s", "waiting")
 
 }
 \seealso{

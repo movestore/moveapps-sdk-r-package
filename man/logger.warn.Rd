@@ -17,7 +17,7 @@ that should be addressed but don't prevent the application from continuing.
 }
 \examples{
 logger.warn("Configuration file not found, using defaults")
-logger.warn("Memory usage is high: \%d MB", memory_usage)
+logger.warn("Memory usage is high: \%d MB", 12)
 
 }
 \seealso{

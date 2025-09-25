@@ -49,17 +49,18 @@ names(TRACE) <- "TRACE"
 #'
 #' @param level An integer representing the log level (use predefined constants like INFO, DEBUG, etc.)
 #' @param msg A character string containing the log message, potentially with sprintf format specifiers
-#' @param id A character string identifier (currently unused in the implementation)
 #' @param ... Additional arguments to be passed to sprintf for message formatting
 #'
 #' @return A formatted character string containing timestamp, log level, and message
 #'
 #' @examples
+#' \dontrun{
 #' logger.layout(INFO, "Application started")
 #' logger.layout(DEBUG, "Processing %d items", 42)
+#' }
 #'
 #' @seealso \code{\link{sprintf}} for message formatting details
-logger.layout <- function(level, msg, id='', ...) {
+logger.layout <- function(level, msg, ...) {
   the.time <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
   if (length(list(...)) > 0) {
     parsed <- lapply(list(...), function(x) if(is.null(x)) 'NULL' else x )
@@ -122,7 +123,7 @@ logger.layout <- function(level, msg, id='', ...) {
 logger.log_level <- function(msg, ..., level)
 {
   if (level <= .logger_env$threshold) {
-    message <- logger.layout(level, msg, name, ...)
+    message <- logger.layout(level, msg, ...)
     cat(message)
   }
 }
@@ -156,7 +157,7 @@ logger.trace <- function(msg, ...) {
 #' @export
 #' @examples
 #' logger.debug("Processing item %d of %d", 5, 10)
-#' logger.debug("Current state: %s", current_state)
+#' logger.debug("Current state: %s", "waiting")
 #'
 #' @seealso \code{\link{logger.log_level}}, \code{\link{DEBUG}}
 logger.debug <- function(msg, ...) {
@@ -174,7 +175,7 @@ logger.debug <- function(msg, ...) {
 #' @export
 #' @examples
 #' logger.info("Application started successfully")
-#' logger.info("Processing completed: %d items processed", item_count)
+#' logger.info("Processing completed: %d items processed", 58)
 #'
 #' @seealso \code{\link{logger.log_level}}, \code{\link{INFO}}
 logger.info <- function(msg, ...) {
@@ -192,7 +193,7 @@ logger.info <- function(msg, ...) {
 #' @export
 #' @examples
 #' logger.warn("Configuration file not found, using defaults")
-#' logger.warn("Memory usage is high: %d MB", memory_usage)
+#' logger.warn("Memory usage is high: %d MB", 12)
 #'
 #' @seealso \code{\link{logger.log_level}}, \code{\link{WARN}}
 logger.warn <- function(msg, ...) {
@@ -209,8 +210,8 @@ logger.warn <- function(msg, ...) {
 #'
 #' @export
 #' @examples
-#' logger.error("Failed to connect to database: %s", error_message)
-#' logger.error("Invalid input provided: %s", user_input)
+#' logger.error("Failed to connect to database: %s", "foo")
+#' logger.error("Invalid input provided: %s", "invalid")
 #'
 #' @seealso \code{\link{logger.log_level}}, \code{\link{ERROR}}
 logger.error <- function(msg, ...) {
@@ -227,8 +228,8 @@ logger.error <- function(msg, ...) {
 #'
 #' @export
 #' @examples
-#' logger.fatal("Critical system error: %s", system_error)
-#' logger.fatal("Application cannot continue due to: %s", fatal_condition)
+#' logger.fatal("Critical system error: %s", "low resources")
+#' logger.fatal("Application cannot continue due to: %s", "panic")
 #'
 #' @seealso \code{\link{logger.log_level}}, \code{\link{FATAL}}
 logger.fatal <- function(msg, ...) {

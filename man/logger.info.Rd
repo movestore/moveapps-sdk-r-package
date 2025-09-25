@@ -17,7 +17,7 @@ that highlight the progress of the application.
 }
 \examples{
 logger.info("Application started successfully")
-logger.info("Processing completed: \%d items processed", item_count)
+logger.info("Processing completed: \%d items processed", 58)
 
 }
 \seealso{

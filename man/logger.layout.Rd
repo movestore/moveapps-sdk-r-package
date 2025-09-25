@@ -4,14 +4,12 @@
 \alias{logger.layout}
 \title{Format log messages with timestamp and level}
 \usage{
-logger.layout(level, msg, id = "", ...)
+logger.layout(level, msg, ...)
 }
 \arguments{
 \item{level}{An integer representing the log level (use predefined constants like INFO, DEBUG, etc.)}
 
 \item{msg}{A character string containing the log message, potentially with sprintf format specifiers}
-
-\item{id}{A character string identifier (currently unused in the implementation)}
 
 \item{...}{Additional arguments to be passed to sprintf for message formatting}
 }
@@ -24,8 +22,10 @@ log level name, and the formatted message. Supports sprintf-style formatting
 with additional arguments.
 }
 \examples{
+\dontrun{
 logger.layout(INFO, "Application started")
 logger.layout(DEBUG, "Processing \%d items", 42)
+}
 
 }
 \seealso{

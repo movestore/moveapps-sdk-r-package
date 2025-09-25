@@ -16,8 +16,8 @@ Logs a message at the ERROR level, used for error events that might still
 allow the application to continue running.
 }
 \examples{
-logger.error("Failed to connect to database: \%s", error_message)
-logger.error("Invalid input provided: \%s", user_input)
+logger.error("Failed to connect to database: \%s", "foo")
+logger.error("Invalid input provided: \%s", "invalid")
 
 }
 \seealso{
