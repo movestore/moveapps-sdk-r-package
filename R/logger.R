@@ -99,6 +99,7 @@ logger.log_level <- function(msg, ..., level)
 #' @param msg A character string containing the log message, supports sprintf formatting
 #' @param ... Additional arguments for sprintf-style message formatting
 #'
+#' @export
 #' @examples
 #' logger.trace("Entering function with parameter: %s", "value")
 #' logger.trace("Variable state: x = %d, y = %s", 42, "test")
@@ -116,6 +117,7 @@ logger.trace <- function(msg, ...) {
 #' @param msg A character string containing the log message, supports sprintf formatting
 #' @param ... Additional arguments for sprintf-style message formatting
 #'
+#' @export
 #' @examples
 #' logger.debug("Processing item %d of %d", 5, 10)
 #' logger.debug("Current state: %s", current_state)
@@ -133,6 +135,7 @@ logger.debug <- function(msg, ...) {
 #' @param msg A character string containing the log message, supports sprintf formatting
 #' @param ... Additional arguments for sprintf-style message formatting
 #'
+#' @export
 #' @examples
 #' logger.info("Application started successfully")
 #' logger.info("Processing completed: %d items processed", item_count)
@@ -150,6 +153,7 @@ logger.info <- function(msg, ...) {
 #' @param msg A character string containing the log message, supports sprintf formatting
 #' @param ... Additional arguments for sprintf-style message formatting
 #'
+#' @export
 #' @examples
 #' logger.warn("Configuration file not found, using defaults")
 #' logger.warn("Memory usage is high: %d MB", memory_usage)
@@ -167,6 +171,7 @@ logger.warn <- function(msg, ...) {
 #' @param msg A character string containing the log message, supports sprintf formatting
 #' @param ... Additional arguments for sprintf-style message formatting
 #'
+#' @export
 #' @examples
 #' logger.error("Failed to connect to database: %s", error_message)
 #' logger.error("Invalid input provided: %s", user_input)
@@ -184,6 +189,7 @@ logger.error <- function(msg, ...) {
 #' @param msg A character string containing the log message, supports sprintf formatting
 #' @param ... Additional arguments for sprintf-style message formatting
 #'
+#' @export
 #' @examples
 #' logger.fatal("Critical system error: %s", system_error)
 #' logger.fatal("Application cannot continue due to: %s", fatal_condition)
