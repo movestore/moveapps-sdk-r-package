@@ -70,22 +70,59 @@ logger.layout <- function(level, msg, id='', ...) {
 
 #' Core logging function with level threshold checking
 #'
-#' Internal logging function that checks if the provided log level meets the
-#' current logging threshold before formatting and outputting the message.
-#' Messages are only displayed if the level is less than or equal to the threshold.
+#' Internal logging function that determines whether to display a log message
+#' based on the current logging threshold. This function reads the LOG_LEVEL_SDK
+#' environment variable to get the current threshold and only outputs messages
+#' if the provided level meets or exceeds the priority threshold.
 #'
-#' @param msg A character string containing the log message
-#' @param ... Additional arguments passed to the layout function for message formatting
-#' @param level An integer representing the log level to check against the threshold
+#' @param msg A character string containing the log message, supports sprintf formatting
+#' @param ... Additional arguments passed to the layout function for sprintf-style message formatting
+#' @param level An integer representing the log level to check against the threshold.
+#'   Should be one of the predefined log level constants (FATAL, ERROR, WARN, INFO, DEBUG, TRACE)
 #'
-#' @details This function compares the provided level against logger.threshold.
-#' Only messages with levels less than or equal to the threshold are displayed.
-#' Lower numeric values represent higher priority levels.
+#' @details
+#' This function implements the core logging logic by:
+#' \enumerate{
+#'   \item Reading the current log threshold from the LOG_LEVEL_SDK environment variable (defaults to "DEBUG")
+#'   \item Comparing the provided level against this threshold
+#'   \item Only formatting and displaying messages if level <= threshold
+#' }
 #'
-#' @seealso \code{\link{logger.layout}} for message formatting
+#' The log level hierarchy (lower numbers = higher priority):
+#' \itemize{
+#'   \item FATAL (1) - Critical errors
+#'   \item ERROR (2) - Error conditions
+#'   \item WARN (4) - Warning conditions
+#'   \item INFO (6) - Informational messages
+#'   \item DEBUG (8) - Debug information
+#'   \item TRACE (9) - Detailed trace information
+#' }
+#'
+#' @return No return value, called for side effects (outputs to console via cat())
+#'
+#' @note This is an internal function typically called by the specific logging
+#' functions (logger.trace, logger.debug, etc.) rather than directly by users.
+#'
+#' @examples
+#' \dontrun{
+#' # Typically called by other logging functions, but can be used directly
+#' logger.log_level("Processing started", level = INFO)
+#' logger.log_level("Found %d items", 42, level = DEBUG)
+#'
+#' # Set environment to only show warnings and above
+#' Sys.setenv(LOG_LEVEL_SDK = "WARN")
+#' logger.log_level("This won't show", level = DEBUG)  # Won't display
+#' logger.log_level("This will show", level = WARN)    # Will display
+#' }
+#'
+#' @seealso
+#' \code{\link{logger.layout}} for message formatting,
+#' \code{\link{logger.trace}}, \code{\link{logger.debug}}, \code{\link{logger.info}},
+#' \code{\link{logger.warn}}, \code{\link{logger.error}}, \code{\link{logger.fatal}}
 logger.log_level <- function(msg, ..., level)
 {
-  if (level <= logger.threshold)  {
+  threshold <- Sys.getenv(x = "LOG_LEVEL_SDK", "DEBUG")
+  if (level <= threshold)  {
     message <- logger.layout(level, msg, name, ...)
     cat(message)
   }
@@ -197,52 +234,4 @@ logger.error <- function(msg, ...) {
 #' @seealso \code{\link{logger.log_level}}, \code{\link{FATAL}}
 logger.fatal <- function(msg, ...) {
   logger.log_level(msg, ..., level = FATAL)
-}
-
-#' Initialize logger configuration
-#'
-#' Initializes the logger by setting the logging threshold based on the
-#' LOG_LEVEL_SDK environment variable. If the environment variable is not set,
-#' defaults to "DEBUG" level.
-#'
-#' @details
-#' This function should be called once at the beginning of your application to
-#' configure the logging system. It reads the LOG_LEVEL_SDK environment variable
-#' to determine the minimum log level that will be displayed. Valid log levels
-#' (in order of increasing verbosity) are:
-#' \itemize{
-#'   \item FATAL (1) - Critical errors that may cause termination
-#'   \item ERROR (2) - Error conditions that don't necessarily terminate the app
-#'   \item WARN (4) - Warning conditions that should be addressed
-#'   \item INFO (6) - General informational messages
-#'   \item DEBUG (8) - Detailed information for debugging
-#'   \item TRACE (9) - Very detailed diagnostic information
-#' }
-#'
-#' @return No return value, called for side effects (sets logger.threshold)
-#'
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' # Initialize logger with default DEBUG level
-#' logger.init()
-#'
-#' # Set environment variable before initialization
-#' Sys.setenv(LOG_LEVEL_SDK = "INFO")
-#' logger.init()
-#'
-#' # Now only INFO level and above messages will be displayed
-#' logger.debug("This won't be shown")  # Won't display
-#' logger.info("This will be shown")    # Will display
-#' }
-#'
-#' @seealso
-#' \code{\link{logger.trace}}, \code{\link{logger.debug}}, \code{\link{logger.info}},
-#' \code{\link{logger.warn}}, \code{\link{logger.error}}, \code{\link{logger.fatal}}
-#'
-#' @note The logger.threshold variable should be properly declared and accessible
-#' within the logger's scope for this function to work correctly.
-logger.init <- function() {
-  logger.threshold = Sys.getenv(x = "LOG_LEVEL_SDK", "DEBUG")
 }

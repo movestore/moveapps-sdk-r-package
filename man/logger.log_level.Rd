@@ -7,22 +7,59 @@
 logger.log_level(msg, ..., level)
 }
 \arguments{
-\item{msg}{A character string containing the log message}
+\item{msg}{A character string containing the log message, supports sprintf formatting}
 
-\item{...}{Additional arguments passed to the layout function for message formatting}
+\item{...}{Additional arguments passed to the layout function for sprintf-style message formatting}
 
-\item{level}{An integer representing the log level to check against the threshold}
+\item{level}{An integer representing the log level to check against the threshold.
+Should be one of the predefined log level constants (FATAL, ERROR, WARN, INFO, DEBUG, TRACE)}
+}
+\value{
+No return value, called for side effects (outputs to console via cat())
 }
 \description{
-Internal logging function that checks if the provided log level meets the
-current logging threshold before formatting and outputting the message.
-Messages are only displayed if the level is less than or equal to the threshold.
+Internal logging function that determines whether to display a log message
+based on the current logging threshold. This function reads the LOG_LEVEL_SDK
+environment variable to get the current threshold and only outputs messages
+if the provided level meets or exceeds the priority threshold.
 }
 \details{
-This function compares the provided level against logger.threshold.
-Only messages with levels less than or equal to the threshold are displayed.
-Lower numeric values represent higher priority levels.
+This function implements the core logging logic by:
+\enumerate{
+\item Reading the current log threshold from the LOG_LEVEL_SDK environment variable (defaults to "DEBUG")
+\item Comparing the provided level against this threshold
+\item Only formatting and displaying messages if level <= threshold
+}
+
+The log level hierarchy (lower numbers = higher priority):
+\itemize{
+\item FATAL (1) - Critical errors
+\item ERROR (2) - Error conditions
+\item WARN (4) - Warning conditions
+\item INFO (6) - Informational messages
+\item DEBUG (8) - Debug information
+\item TRACE (9) - Detailed trace information
+}
+}
+\note{
+This is an internal function typically called by the specific logging
+functions (logger.trace, logger.debug, etc.) rather than directly by users.
+}
+\examples{
+\dontrun{
+# Typically called by other logging functions, but can be used directly
+logger.log_level("Processing started", level = INFO)
+logger.log_level("Found \%d items", 42, level = DEBUG)
+
+# Set environment to only show warnings and above
+Sys.setenv(LOG_LEVEL_SDK = "WARN")
+logger.log_level("This won't show", level = DEBUG)  # Won't display
+logger.log_level("This will show", level = WARN)    # Will display
+}
+
 }
 \seealso{
-\code{\link{logger.layout}} for message formatting
+\code{\link{logger.layout}} for message formatting,
+\code{\link{logger.trace}}, \code{\link{logger.debug}}, \code{\link{logger.info}},
+\code{\link{logger.warn}}, \code{\link{logger.error}}, \code{\link{logger.fatal}}
 }
