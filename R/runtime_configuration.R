@@ -1,6 +1,6 @@
 #' Load Application Configuration
 #'
-#' Loads configuration from a JSON file specified by the CONFIGURATION_FILE
+#' Loads configuration from a JSON file specified by the CONFIGURATION
 #' environment variable. Optionally prints the configuration with masked
 #' sensitive settings based on environment variables.
 #'
@@ -10,7 +10,7 @@
 #' @details
 #' The function reads the following environment variables:
 #' \itemize{
-#'   \item \code{CONFIGURATION_FILE}: Path to the JSON configuration file
+#'   \item \code{CONFIGURATION}: Path to the JSON configuration file or json string
 #'   \item \code{PRINT_CONFIGURATION}: Set to "yes" to print configuration on load
 #'   \item \code{MASK_SETTING_IDS}: Comma-separated list of setting IDs to mask when printing
 #' }
@@ -23,7 +23,7 @@
 #' @examples
 #' \dontrun{
 #' # Set environment variables
-#' Sys.setenv(CONFIGURATION_FILE = "/path/to/config.json")
+#' Sys.setenv(CONFIGURATION = "/path/to/config.json")
 #' Sys.setenv(PRINT_CONFIGURATION = "yes")
 #' Sys.setenv(MASK_SETTING_IDS = "password,api_key")
 #'
@@ -33,7 +33,7 @@
 #'
 #' @export
 configuration <- function() {
-    configurationFile <- Sys.getenv(x = "CONFIGURATION_FILE", "")
+    configurationFile <- Sys.getenv(x = "CONFIGURATION", "")
 
     result <- if(configurationFile != "") {
         jsonlite::fromJSON(txt=configurationFile)
