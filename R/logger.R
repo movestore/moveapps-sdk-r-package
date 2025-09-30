@@ -61,12 +61,12 @@ names(TRACE) <- "TRACE"
 #'
 #' @seealso \code{\link{sprintf}} for message formatting details
 logger.layout <- function(level, msg, ...) {
-  the.time <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  time <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
   if (length(list(...)) > 0) {
     parsed <- lapply(list(...), function(x) if(is.null(x)) 'NULL' else x )
     msg <- do.call(sprintf, c(msg, parsed))
   }
-  sprintf("[%-5s] %s\n", names(level), msg)
+  sprintf("$s [%-5s] %s\n", time, names(level), msg)
 }
 
 #' Core logging function with level threshold checking
