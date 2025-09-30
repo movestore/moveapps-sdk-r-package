@@ -97,10 +97,10 @@ simulateMoveAppsShinyUi <- function(request) {
 #     tags$head(singleton(tags$script(src = system.file("shiny-apps/www/ws-keep-alive-fix.js", package = "moveapps")))),
 #     tags$head(singleton(tags$script(src = system.file("shiny-apps/www/extract-inputs.js", package = "moveapps")))),
 #     tags$link(rel = "stylesheet", type = "text/css", href = system.file("shiny-apps/www/ws-keep-alive-fix.css", package = "moveapps")),
-    tags$head(singleton(tags$script(src = system.file("shiny-apps/www/ws-keep-alive-fix.js", package = "moveapps")),
+    tags$head(singleton(tags$script(src = system.file("shiny-apps/www/ws-keep-alive-fix.js", package = "moveapps")))),
 #     moveapps::wsKeepAliveJs(),
-    tags$script(src = system.file("shiny-apps/www/extract-input.js", package = "moveapps")),
-    tags$link(rel = "stylesheet", href = system.file("shiny-apps/www/ws-keep-alive-fix.css", package = "moveapps")),
+    tags$head(singleton(tags$script(src = system.file("shiny-apps/www/extract-input.js", package = "moveapps")))),
+    tags$link(rel = "stylesheet", type = "text/css", href = system.file("shiny-apps/www/ws-keep-alive-fix.css", package = "moveapps")),
     shinyModuleUserInterface("shinyModule"),
 
     # ws-heartbeat fix
