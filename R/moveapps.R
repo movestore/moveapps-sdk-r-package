@@ -94,10 +94,13 @@ simulateMoveAppsRun <- function(args) {
 #' @export
 simulateMoveAppsShinyUi <- function(request) {
   fluidPage(
+    # include JS/CSS bundled into this R package
+    # kudos: https://shiny.posit.co/r/articles/build/packaging-javascript/
     includeScript(system.file("shiny-apps/www/ws-keep-alive-fix.js", package = "moveapps")),
     includeCSS(system.file("shiny-apps/www/ws-keep-alive-fix.css", package = "moveapps")),
     includeScript(system.file("shiny-apps/www/extract-inputs.js", package = "moveapps")),
 
+    # functions (`shinyModuleUserInterface()` and `shinyModule()`) provided by the app developer
     shinyModuleUserInterface("shinyModule"),
 
     # ws-heartbeat fix
