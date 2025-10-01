@@ -39,6 +39,7 @@ bookmarkJsonTargetPath <- fs::path(bookmarkDir, bookmarkJsonName)
 #' }
 #'
 #' @seealso \code{\link{restoreShinyBookmark}} for restoring bookmarks
+#' @export
 saveBookmarkAsLatest <- function(url) {
   stateId <- shiny::parseQueryString(sub("^.*\\?", "", url))$`_state_id_`
   if(!fs::dir_exists(bookmarkDir)){
@@ -87,6 +88,7 @@ saveBookmarkAsLatest <- function(url) {
 #' }
 #'
 #' @seealso \code{\link{saveBookmarkAsLatest}} for saving bookmarks
+#' @export
 restoreShinyBookmark <- function(session) {
   if(fs::file_exists(bookmarkRdsTargetPath) && is.null(shiny::parseQueryString(session$clientData$url_search)$`_state_id_`)) {
     shiny::updateQueryString(queryString = "?_state_id_=latest")
@@ -125,8 +127,7 @@ restoreShinyBookmark <- function(session) {
 #' saveInputAsJson(custom_state)
 #' }
 #'
-#' @seealso \code{\link{jsonlite::toJSON}} for converting R objects to JSON,
-#' \code{\link{reactiveValuesToList}} for extracting Shiny input values
+#' @export
 saveInputAsJson <- function(jsonString) {
   tryCatch(
     {

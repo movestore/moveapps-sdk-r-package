@@ -38,7 +38,3 @@ saveInputAsJson(custom_state)
 }
 
 }
-\seealso{
-\code{\link{jsonlite::toJSON}} for converting R objects to JSON,
-\code{\link{reactiveValuesToList}} for extracting Shiny input values
-}
