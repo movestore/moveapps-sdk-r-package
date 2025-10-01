@@ -36,24 +36,25 @@
 #'
 #' @export
 # simulate an app run on moveapps.org
-simulateMoveAppsRun <- function(args) {
+execute <- function() {
     tryCatch(
     {
         Sys.setenv(tz="UTC")
 
-        data <- readInput(sourceFile())
+        args <- moveapps::configuration()
+        data <- moveapps::readInput(moveapps::sourceFile())
         if (!is.null(data)) {
             args[["data"]] <- data
         }
 
         result <- do.call(rFunction, args)
-        storeResult(result, outputFile())
+        moveapps::storeResult(result, moveapps::outputFile())
     },
     error = function(e)
     {
         # error handler picks up where error was generated
         print(paste("ERROR: ", e))
-        storeToFile(e, errorFile())
+        moveapps::storeToFile(e, moveapps::errorFile())
         stop(e) # re-throw the exception
     })
 }
@@ -157,7 +158,7 @@ simulateMoveAppsShinyUi <- function(request) {
 simulateMoveAppsShinyServer <- function(input, output, session) {
   tryCatch(
   {
-    data <- readInput(sourceFile())
+    data <- moveapps::readInput(moveapps::sourceFile())
     shinyModuleArgs <- c(shinyModule, "shinyModule")
     if (!is.null(data)) {
       shinyModuleArgs[["data"]] <- data
@@ -168,7 +169,7 @@ simulateMoveAppsShinyServer <- function(input, output, session) {
     observeEvent(
       session,
       {
-        restoreShinyBookmark(session)
+        moveapps::restoreShinyBookmark(session)
         # Trigger extractShinyInput after restoring the bookmark
         session$sendCustomMessage("extract-shiny-input", list())
       },
@@ -187,18 +188,18 @@ simulateMoveAppsShinyServer <- function(input, output, session) {
     # listen to the custom shiny input extraction and store it as JSON
     observeEvent(input$shiny_input_json, {
       req(input$shiny_input_json)
-      saveInputAsJson(input$shiny_input_json)
-      notifyPushBookmark("input.json")
+      moveapps::saveInputAsJson(input$shiny_input_json)
+      moveapps::notifyPushBookmark("input.json")
     })
     observe({
-      storeResult(result(), outputFile())
-      notifyDone("SHINY")
+      moveapps::storeResult(result(), moveapps::outputFile())
+      moveapps::notifyDone("SHINY")
     })
   },
   error = function(e) {
     # error handler picks up where error was generated
     print(paste("ERROR: ", e))
-    storeToFile(e, errorFile())
+    moveapps::storeToFile(e, moveapps::errorFile())
     if (grepl("[code 10]", e$message, fixed=TRUE)) {
       stopApp(10)
     } else {
@@ -216,7 +217,7 @@ simulateMoveAppsShinyServer <- function(input, output, session) {
   # hook after persisting the bookmark
   # see https://shiny.rstudio.com/articles/advanced-bookmarking.html
   onBookmarked(function(url) {
-    saveBookmarkAsLatest(url)
-    notifyPushBookmark("input.rds")
+    moveapps::saveBookmarkAsLatest(url)
+    moveapps::notifyPushBookmark("input.rds")
   })
 }
