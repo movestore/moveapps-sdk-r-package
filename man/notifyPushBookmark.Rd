@@ -2,42 +2,27 @@
 % Please edit documentation in R/shiny_pilot_client.R
 \name{notifyPushBookmark}
 \alias{notifyPushBookmark}
-\title{Notify Push Bookmark}
+\title{Push Shiny Bookmark to Pilot}
 \usage{
 notifyPushBookmark(fileName)
 }
 \arguments{
-\item{fileName}{Character string. The name of the file associated with the
-Shiny bookmark being pushed. This identifies which bookmark file is being
-processed or saved.}
+\item{fileName}{Character string specifying the name of the bookmark file}
 }
 \value{
-No return value, called for side effects (logging notification)
+No return value. Called for its side effect of uploading the bookmark.
 }
 \description{
-Sends a notification for pushing a Shiny bookmark with the specified filename.
-This function is part of the HTTP fake client implementation for testing and
-debugging Shiny bookmark functionality.
+Notifies the pilot service to push a Shiny bookmark file. This function is used
+to save and restore Shiny application state.
 }
 \details{
-This is a fake client function used for testing and development of Shiny
-bookmark functionality. In the actual implementation, this would typically
-send an HTTP notification to a server endpoint to handle bookmark persistence.
-The fake implementation logs the notification with the filename for debugging purposes.
-
-Shiny bookmarks allow users to save the state of a Shiny application and
-restore it later. This function would be called when a bookmark needs to be
-pushed or synchronized with a remote service.
+If the HTTP_CLIENT_FAKE environment variable is set to "yes", the function
+returns early without sending any notification (useful for testing).
+The function logs whether the upload was successful or failed.
 }
 \examples{
 \dontrun{
-notifyPushBookmark("user_session_123.rds")
-notifyPushBookmark("analysis_state.bookmark")
+notifyPushBookmark("bookmark_2023-10-01.rds")
 }
-
 }
-\seealso{
-\code{\link{logger.debug}} for the logging function used,
-\href{https://shiny.rstudio.com/articles/bookmarking-state.html}{Shiny Bookmarking}
-}
-\keyword{internal}

@@ -2,36 +2,26 @@
 % Please edit documentation in R/shiny_pilot_client.R
 \name{notifyDone}
 \alias{notifyDone}
-\title{Notify Execution Done}
+\title{Notify Pilot of Execution Completion}
 \usage{
 notifyDone(executionType)
 }
 \arguments{
-\item{executionType}{Character string. The type of execution that has completed.
-This parameter identifies what kind of operation or process has finished.}
+\item{executionType}{Character string specifying the type of execution that completed}
 }
 \value{
-No return value, called for side effects (logging notification)
+No return value. Called for its side effect of sending HTTP notification.
 }
 \description{
-Sends a notification indicating that a specific type of execution has completed.
-This function is part of the HTTP fake client implementation for testing and
-debugging purposes.
+Sends a notification to the pilot service indicating that an execution has
+completed successfully. This function is used internally by the MoveApps framework.
 }
 \details{
-This is a fake client function used for testing and development. In the actual
-implementation, this would typically send an HTTP notification to a server
-endpoint. The fake implementation simply logs the notification using the
-debug logging level.
+If the HTTP_CLIENT_FAKE environment variable is set to "yes", the function
+returns early without sending any notification (useful for testing).
 }
 \examples{
 \dontrun{
-notifyDone("data_processing")
-notifyDone("model_training")
+notifyDone("shiny_app")
 }
-
 }
-\seealso{
-\code{\link{logger.debug}} for the logging function used
-}
-\keyword{internal}
