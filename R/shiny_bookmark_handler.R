@@ -48,15 +48,22 @@ ensureBookmarkDirExists <- function() {
 #' @seealso \code{\link{restoreShinyBookmark}} for restoring bookmarks
 #' @export
 saveBookmarkAsLatest <- function(url) {
-  stateId <- shiny::parseQueryString(sub("^.*\\?", "", url))$`_state_id_`
-  ensureBookmarkDirExists()
+  tryCatch(
+    {
+      stateId <- shiny::parseQueryString(sub("^.*\\?", "", url))$`_state_id_`
+      ensureBookmarkDirExists()
 
-  fs::file_move(
-    path = fs::path("shiny_bookmarks", stateId, bookmarkFileName),
-    new_path = bookmarkRdsTargetPath
+      fs::file_move(
+        path = fs::path("shiny_bookmarks", stateId, bookmarkFileName),
+        new_path = bookmarkRdsTargetPath
+      )
+      fs::dir_delete(fs::path("shiny_bookmarks", stateId))
+      logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "to", bookmarkDir))
+    },
+    error = function(e) {
+      logger.error(paste("[bookmark] Could not save the shiny bookmark as latest:", e))
+    }
   )
-  fs::dir_delete(fs::path("shiny_bookmarks", stateId))
-  logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "to", bookmarkDir))
 }
 
 #' Restore Shiny Bookmark
@@ -96,11 +103,18 @@ saveBookmarkAsLatest <- function(url) {
 #' @seealso \code{\link{saveBookmarkAsLatest}} for saving bookmarks
 #' @export
 restoreShinyBookmark <- function(session) {
-  if(fs::file_exists(bookmarkRdsTargetPath) && is.null(shiny::parseQueryString(session$clientData$url_search)$`_state_id_`)) {
-    shiny::updateQueryString(queryString = "?_state_id_=latest")
-    logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
-    session$reload()
-  }
+  tryCatch(
+    {
+      if(fs::file_exists(bookmarkRdsTargetPath) && is.null(shiny::parseQueryString(session$clientData$url_search)$`_state_id_`)) {
+        shiny::updateQueryString(queryString = "?_state_id_=latest")
+        logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
+        session$reload()
+      }
+    },
+    error = function(e) {
+      logger.error(paste("[bookmark] Could not restore the shiny bookmark:", e))
+    }
+  )
 }
 
 #' Save Shiny Input as JSON
@@ -143,5 +157,6 @@ saveInputAsJson <- function(jsonString) {
     },
     error = function(e) {
       logger.error(paste("[bookmark] Could not write shiny input JSON file:", e))
-    })
+    }
+  )
 }
