@@ -7,6 +7,13 @@ bookmarkRdsTargetPath <- fs::path(bookmarkDir, bookmarkFileName)
 bookmarkJsonName <- "input.json"
 bookmarkJsonTargetPath <- fs::path(bookmarkDir, bookmarkJsonName)
 
+ensureBookmarkDirExists <- function() {
+  if(!fs::dir_exists(bookmarkDir)){
+    fs::dir_create(bookmarkDir)
+    logger.debug(paste("[bookmark] Created shiny bookmark directory", bookmarkDir))
+  }
+}
+
 #' Save Shiny Bookmark as Latest
 #'
 #' Moves a Shiny bookmark from its temporary location to a persistent "latest" location.
@@ -42,9 +49,8 @@ bookmarkJsonTargetPath <- fs::path(bookmarkDir, bookmarkJsonName)
 #' @export
 saveBookmarkAsLatest <- function(url) {
   stateId <- shiny::parseQueryString(sub("^.*\\?", "", url))$`_state_id_`
-  if(!fs::dir_exists(bookmarkDir)){
-    fs::dir_create(bookmarkDir)
-  }
+  ensureBookmarkDirExists()
+
   fs::file_move(
     path = fs::path("shiny_bookmarks", stateId, bookmarkFileName),
     new_path = bookmarkRdsTargetPath
@@ -131,6 +137,7 @@ restoreShinyBookmark <- function(session) {
 saveInputAsJson <- function(jsonString) {
   tryCatch(
     {
+      ensureBookmarkDirExists()
       writeLines(jsonString, bookmarkJsonTargetPath)
       logger.debug("[bookmark] Persisted shiny input as JSON")
     },
