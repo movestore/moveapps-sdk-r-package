@@ -23,7 +23,7 @@
 #' @examples
 #' \dontrun{
 #' # Set environment variables
-#' Sys.setenv(CONFIGURATION = "/path/to/config.json")
+#' Sys.setenv(CONFIGURATION = "{\"key\": \"value\"}")
 #' Sys.setenv(PRINT_CONFIGURATION = "yes")
 #' Sys.setenv(MASK_SETTING_IDS = "password,api_key")
 #'
@@ -33,10 +33,10 @@
 #'
 #' @export
 configuration <- function() {
-    configurationFile <- Sys.getenv(x = "CONFIGURATION", "")
+    configurationString <- Sys.getenv(x = "CONFIGURATION", "{}")
 
-    result <- if(configurationFile != "") {
-        jsonlite::fromJSON(txt=configurationFile)
+    result <- if(configurationString != "") {
+        jsonlite::fromJSON(txt=configurationString)
     } else {
         NULL
     }
