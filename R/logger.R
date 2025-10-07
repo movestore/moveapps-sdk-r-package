@@ -244,26 +244,30 @@ logger.fatal <- function(msg, ...) {
 .logger_env <- new.env(parent = emptyenv())
 .logger_env$threshold <- DEBUG  # Default threshold
 
-#' Initialize the logger with threshold from environment
+#' Initialize the logger with threshold from environment or parameter
 #'
-#' Initializes the logging system by reading the log level threshold from the
-#' LOG_LEVEL_SDK environment variable and configuring the logger threshold.
+#' Initializes the logging system by configuring the logger threshold. You can
+#' control the threshold via the LOG_LEVEL_SDK environment variable or by
+#' passing the optional threshold_param argument.
 #' This function should be called once at the start of your application to set up
 #' the logging behavior.
 #'
+#' @param threshold_param Optional. A character level name (e.g., "INFO") or one of
+#'   the level constants (e.g., INFO) to be used as threshold when the environment
+#'   variable is not set.
+#'
 #' @details
-#' The function performs the following initialization steps:
+#' Final threshold resolution priority:
 #' \enumerate{
-#'   \item Reads the LOG_LEVEL_SDK environment variable (defaults to "DEBUG" if not set)
-#'   \item Attempts to resolve the environment variable value to a corresponding log level constant
-#'   \item Sets the internal logger threshold that controls message filtering
-#'   \item Logs an informational message confirming the configuration
+#'   \item If environment variable LOG_LEVEL_SDK is set, use it.
+#'   \item Otherwise, if threshold_param is provided, use it.
+#'   \item Otherwise, fall back to "DEBUG".
 #' }
 #'
 #' The function searches for log level constants in the current package namespace first,
 #' then falls back to the global environment if needed.
 #'
-#' Valid LOG_LEVEL_SDK values are:
+#' Valid values are:
 #' \itemize{
 #'   \item "FATAL" - Only critical errors (level 1)
 #'   \item "ERROR" - Errors and above (level 2)
@@ -275,8 +279,8 @@ logger.fatal <- function(msg, ...) {
 #'
 #' @return No return value, called for side effects (sets internal logger threshold)
 #'
-#' @note If an invalid LOG_LEVEL_SDK value is provided, the function will issue a
-#' warning and fall back to DEBUG level logging.
+#' @note If an invalid value is provided (environment or parameter), the function
+#' will issue a warning and fall back to DEBUG level logging.
 #'
 #' @examples
 #' # Initialize with default DEBUG level
@@ -285,6 +289,10 @@ logger.fatal <- function(msg, ...) {
 #' # Set environment variable and initialize
 #' Sys.setenv(LOG_LEVEL_SDK = "INFO")
 #' logger.init()
+#'
+#' # Or set via parameter (useful in tests)
+#' logger.init(threshold_param = "WARN")
+#' logger.init(threshold_param = INFO)
 #'
 #' # Example with invalid level (will warn and use DEBUG)
 #' Sys.setenv(LOG_LEVEL_SDK = "INVALID")
@@ -297,24 +305,56 @@ logger.fatal <- function(msg, ...) {
 #' \code{\link{INFO}}, \code{\link{DEBUG}}, \code{\link{TRACE}}
 #'
 #' @export
-logger.init <- function() {
-  # Get the threshold from environment, default to "DEBUG" if not set
-  threshold_name <- Sys.getenv(x = "LOG_LEVEL_SDK", "DEBUG")
+logger.init <- function(threshold_param = NULL) {
+  # Determine threshold source with priority:
+  # 1) Environment variable LOG_LEVEL_SDK (if set)
+  # 2) Optional function parameter threshold_param
+  # 3) Fallback to "DEBUG"
 
-  # Use get() to retrieve the named constant by string name
-  # Try current environment first, then global environment
-  .logger_env$threshold <- tryCatch({
-    # First try to get from current environment (package namespace)
-    get(threshold_name, envir = environment())
-  }, error = function(e) {
+  resolve_level_by_name <- function(name) {
     tryCatch({
-      # If not found, try global environment
-      get(threshold_name, envir = .GlobalEnv)
-    }, error = function(e2) {
-      warning(sprintf("Invalid LOG_LEVEL_SDK value '%s', using DEBUG", threshold_name))
-      DEBUG
+      get(name, envir = environment())
+    }, error = function(e) {
+      tryCatch({
+        get(name, envir = .GlobalEnv)
+      }, error = function(e2) {
+        warning(sprintf("Invalid log level name '%s', using DEBUG", name))
+        DEBUG
+      })
     })
-  })
+  }
 
+  resolve_level_by_value <- function(val) {
+    # Map numeric values to known constants to preserve names()
+    levels_map <- c(FATAL = FATAL, ERROR = ERROR, WARN = WARN, INFO = INFO, DEBUG = DEBUG, TRACE = TRACE)
+    idx <- which(unname(levels_map) == as.integer(val))
+    if (length(idx) == 1) {
+      get(names(levels_map)[idx], envir = environment())
+    } else {
+      warning(sprintf("Invalid numeric log level '%s', using DEBUG", as.character(val)))
+      DEBUG
+    }
+  }
+
+  env_val <- Sys.getenv("LOG_LEVEL_SDK", unset = NA)
+  if (!is.na(env_val) && nzchar(env_val)) {
+    # Priority 1: environment variable
+    chosen_level <- resolve_level_by_name(env_val)
+  } else if (!is.null(threshold_param)) {
+    # Priority 2: function parameter
+    if (is.character(threshold_param) && nzchar(threshold_param[1])) {
+      chosen_level <- resolve_level_by_name(threshold_param[1])
+    } else if (is.numeric(threshold_param)) {
+      chosen_level <- resolve_level_by_value(threshold_param[1])
+    } else {
+      warning("Invalid threshold_param type, using DEBUG")
+      chosen_level <- DEBUG
+    }
+  } else {
+    # Priority 3: fallback
+    chosen_level <- DEBUG
+  }
+
+  .logger_env$threshold <- chosen_level
   cat(paste('logger threshold set to', names(.logger_env$threshold), '\n'))
 }

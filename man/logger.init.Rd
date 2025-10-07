@@ -2,32 +2,37 @@
 % Please edit documentation in R/logger.R
 \name{logger.init}
 \alias{logger.init}
-\title{Initialize the logger with threshold from environment}
+\title{Initialize the logger with threshold from environment or parameter}
 \usage{
-logger.init()
+logger.init(threshold_param = NULL)
+}
+\arguments{
+\item{threshold_param}{Optional. A character level name (e.g., "INFO") or one of
+the level constants (e.g., INFO) to be used as threshold when the environment
+variable is not set.}
 }
 \value{
 No return value, called for side effects (sets internal logger threshold)
 }
 \description{
-Initializes the logging system by reading the log level threshold from the
-LOG_LEVEL_SDK environment variable and configuring the logger threshold.
+Initializes the logging system by configuring the logger threshold. You can
+control the threshold via the LOG_LEVEL_SDK environment variable or by
+passing the optional threshold_param argument.
 This function should be called once at the start of your application to set up
 the logging behavior.
 }
 \details{
-The function performs the following initialization steps:
+Final threshold resolution priority:
 \enumerate{
-\item Reads the LOG_LEVEL_SDK environment variable (defaults to "DEBUG" if not set)
-\item Attempts to resolve the environment variable value to a corresponding log level constant
-\item Sets the internal logger threshold that controls message filtering
-\item Logs an informational message confirming the configuration
+\item If environment variable LOG_LEVEL_SDK is set, use it.
+\item Otherwise, if threshold_param is provided, use it.
+\item Otherwise, fall back to "DEBUG".
 }
 
 The function searches for log level constants in the current package namespace first,
 then falls back to the global environment if needed.
 
-Valid LOG_LEVEL_SDK values are:
+Valid values are:
 \itemize{
 \item "FATAL" - Only critical errors (level 1)
 \item "ERROR" - Errors and above (level 2)
@@ -38,8 +43,8 @@ Valid LOG_LEVEL_SDK values are:
 }
 }
 \note{
-If an invalid LOG_LEVEL_SDK value is provided, the function will issue a
-warning and fall back to DEBUG level logging.
+If an invalid value is provided (environment or parameter), the function
+will issue a warning and fall back to DEBUG level logging.
 }
 \examples{
 # Initialize with default DEBUG level
@@ -48,6 +53,10 @@ logger.init()
 # Set environment variable and initialize
 Sys.setenv(LOG_LEVEL_SDK = "INFO")
 logger.init()
+
+# Or set via parameter (useful in tests)
+logger.init(threshold_param = "WARN")
+logger.init(threshold_param = INFO)
 
 # Example with invalid level (will warn and use DEBUG)
 Sys.setenv(LOG_LEVEL_SDK = "INVALID")
