@@ -52,27 +52,6 @@ getAuxiliaryFilePath <- function(appSpecUserFileSettingId, fallbackToProvidedFil
     return(result)
 }
 
-#' Get App File Path (Deprecated)
-#'
-#' \strong{DEPRECATED!} This function handles app-settings of type \code{LOCAL_FILE}.
-#' This setting type was deprecated. Please migrate from \code{LOCAL_FILE} to
-#' \code{USER_FILE} app-setting type and use \code{\link{getAuxiliaryFilePath}} instead.
-#'
-#' @param appSpecUserFileSettingId Character string. The ID of the requested set of app-files
-#' @param fallbackToProvidedFiles Logical. Should the function fallback to bundled directory? Default is \code{TRUE}.
-#'
-#' @return Character string containing the directory path, or \code{NULL} if not found.
-#'
-#' @keywords internal
-#' @export
-getAppFilePath <- function(appSpecUserFileSettingId, fallbackToProvidedFiles = TRUE) {
-    .Deprecated("getAuxiliaryFilePath")
-    ### please migrate from `LOCAL_FILE` to `USER_FILE` app-setting type.
-    userUploadDir <- Sys.getenv(x = "LOCAL_APP_FILES_DIR", "./uploaded-app-files/")
-    appDevFallbackDir <- "./provided-app-files/"
-    return(getUploadDirOrFallbackDir(appSpecUserFileSettingId, fallbackToProvidedFiles, userUploadDir, appDevFallbackDir))
-}
-
 #' Get Upload Directory or Fallback Directory
 #'
 #' Internal function that provides the path to the directory of an auxiliary file.

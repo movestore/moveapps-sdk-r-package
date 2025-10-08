@@ -31,7 +31,7 @@ for security purposes.
 \examples{
 \dontrun{
 # Set environment variables
-Sys.setenv(CONFIGURATION = "/path/to/config.json")
+Sys.setenv(CONFIGURATION = "{\"key\": \"value\"}")
 Sys.setenv(PRINT_CONFIGURATION = "yes")
 Sys.setenv(MASK_SETTING_IDS = "password,api_key")
 
