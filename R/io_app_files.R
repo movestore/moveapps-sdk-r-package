@@ -68,8 +68,8 @@ getAuxiliaryFilePath <- function(appSpecUserFileSettingId, fallbackToProvidedFil
 getAppFilePath <- function(appSpecUserFileSettingId, fallbackToProvidedFiles = TRUE) {
     .Deprecated("getAuxiliaryFilePath")
     ### please migrate from `LOCAL_FILE` to `USER_FILE` app-setting type.
-    userUploadDir <- paste0(Sys.getenv(x = "LOCAL_APP_FILES_DIR"), "/uploaded-app-files/")
-    appDevFallbackDir <- paste0(Sys.getenv(x = "LOCAL_APP_FILES_DIR"), "/provided-app-files/")
+    userUploadDir <- Sys.getenv(x = "LOCAL_APP_FILES_DIR", "./uploaded-app-files/")
+    appDevFallbackDir <- "./provided-app-files/"
     return(getUploadDirOrFallbackDir(appSpecUserFileSettingId, fallbackToProvidedFiles, userUploadDir, appDevFallbackDir))
 }
 
