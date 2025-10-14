@@ -356,5 +356,4 @@ logger.init <- function(threshold_param = NULL) {
   }
 
   .logger_env$threshold <- chosen_level
-  cat(paste('logger threshold set to', names(.logger_env$threshold), '\n'))
 }
