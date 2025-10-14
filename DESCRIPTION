@@ -1,6 +1,6 @@
 Package: moveapps
 Title: SDK for App Developing on MoveApps
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: 
     person("Clemens", "Hahn", , "clemens@couchbits.com", role = c("aut", "cre"))
 Description: This package provides a comprehensive Software Development Kit (SDK) for R developers to create and deploy applications on the MoveApps platform. It offers essential tools, utilities, and standardized interfaces that streamline the development process of movement ecology applications, enabling developers to build robust data analysis workflows that can seamlessly integrate with the MoveApps ecosystem.
