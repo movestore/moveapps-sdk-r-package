@@ -156,32 +156,18 @@ createMoveAppsShinyUI <- function(request) {
     includeScript(system.file("shiny-apps/www/ws-keep-alive-fix.js", package = "moveapps")),
     includeCSS(system.file("shiny-apps/www/ws-keep-alive-fix.css", package = "moveapps")),
     includeScript(system.file("shiny-apps/www/extract-inputs.js", package = "moveapps")),
-
-    # # functions (`shinyModuleUserInterface()` and `shinyModule()`) provided by the app developer
-    # shinyModuleUserInterface("shinyModule"),
-
+    
     # ws-heartbeat fix
     # kudos: https://github.com/rstudio/shiny/issues/2110#issuecomment-419971302
     textOutput("ws_heartbeat"),
+    
     # store the current state (as a shiny bookmark)
     tags$div(
-      style = "display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;",
-  #     id = "header-bar",  # Add ID for CSS targeting
-  #     class = "header-container",  # Add class for styling
-  #     style = "
-  #   position: relative !important;
-  #   display: flex !important; 
-  #   justify-content: space-between !important; 
-  #   align-items: center !important; 
-  #   padding: 15px 20px !important;
-  #   border-bottom: 1px solid #dee2e6 !important;
-  #   margin-bottom: 10px;
-  # ",
+      style = "position: relative; display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;  border-bottom: none; margin-bottom: 0;",
       h2(""),
-      bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success",
-                     style = "margin: 0 !important;"  # Prevent button margin issues
-                     )
+      bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success", style = "margin: 0;")
     ),
+    
     # functions (`shinyModuleUserInterface()` and `shinyModule()`) provided by the app developer
     shinyModuleUserInterface("shinyModule")
   )
