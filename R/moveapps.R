@@ -165,10 +165,22 @@ createMoveAppsShinyUI <- function(request) {
     textOutput("ws_heartbeat"),
     # store the current state (as a shiny bookmark)
     tags$div(
-      style = "display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;",
-      # style = "display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #f8f9fa;",
+      # style = "display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;",
+      id = "header-bar",  # Add ID for CSS targeting
+      class = "header-container",  # Add class for styling
+      style = "
+    position: relative !important;
+    display: flex !important; 
+    justify-content: space-between !important; 
+    align-items: center !important; 
+    padding: 15px 20px !important;
+    border-bottom: 1px solid #dee2e6 !important;
+    margin-bottom: 10px;
+  ",
       h2(""),
-      bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success")
+      bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success",
+                     style = "margin: 0 !important;"  # Prevent button margin issues
+                     )
     )
   )
 }
