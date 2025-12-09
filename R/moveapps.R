@@ -157,8 +157,8 @@ createMoveAppsShinyUI <- function(request) {
     includeCSS(system.file("shiny-apps/www/ws-keep-alive-fix.css", package = "moveapps")),
     includeScript(system.file("shiny-apps/www/extract-inputs.js", package = "moveapps")),
 
-    # functions (`shinyModuleUserInterface()` and `shinyModule()`) provided by the app developer
-    shinyModuleUserInterface("shinyModule"),
+    # # functions (`shinyModuleUserInterface()` and `shinyModule()`) provided by the app developer
+    # shinyModuleUserInterface("shinyModule"),
 
     # ws-heartbeat fix
     # kudos: https://github.com/rstudio/shiny/issues/2110#issuecomment-419971302
@@ -181,7 +181,9 @@ createMoveAppsShinyUI <- function(request) {
       bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success",
                      style = "margin: 0 !important;"  # Prevent button margin issues
                      )
-    )
+    ),
+    # functions (`shinyModuleUserInterface()` and `shinyModule()`) provided by the app developer
+    shinyModuleUserInterface("shinyModule")
   )
 }
 
