@@ -164,7 +164,11 @@ createMoveAppsShinyUI <- function(request) {
     # kudos: https://github.com/rstudio/shiny/issues/2110#issuecomment-419971302
     textOutput("ws_heartbeat"),
     # store the current state (as a shiny bookmark)
-    bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success"),
+    tags$div(
+      # style = "display: flex; justify-content: space-between; align-items: center; padding: 10px;",
+      style = "display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #f8f9fa;",
+      bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success")
+    )
   )
 }
 
