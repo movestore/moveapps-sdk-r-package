@@ -163,8 +163,7 @@ createMoveAppsShinyUI <- function(request) {
     
     # store the current state (as a shiny bookmark)
     tags$div(
-      style = "position: relative; display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;  border-bottom: none; margin-bottom: 0;",
-      h2(""),
+      style = "display: flex; justify-content: flex-end;",
       bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success", style = "margin: 0;")
     ),
     
