@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Mask sensitive values in `bookmark.json`
 - Improved logging about non present auxilary file
+- Place the "Store settings" (shiny) button at the top end for better accessibility
 
 ## [v1.0.1] - 2025-10-14
 
