@@ -42,6 +42,10 @@ getAuxiliaryFilePath <- function(appSpecUserFileSettingId, fallbackToProvidedFil
         logger.warn("[%s] No files found for app setting. Therefore returning `NULL`.", appSpecUserFileSettingId)
         return(NULL)
     }
+    if (length(list.files(dir)) == 0) {
+        logger.info("[%s] The app setting of type `USER_FILE` contains '0' files (neither uploaded file nor provided file available). Therefore returning `NULL`.", appSpecUserFileSettingId)
+        return(NULL)
+    }
     if (length(list.files(dir)) != 1) {
         logger.warn("[%s] An app setting of type `USER_FILE` must contain exactly 0 or 1 file(s). The setting contains '%s' file(s). Therefore returning `NULL`.", appSpecUserFileSettingId, length(list.files(dir)))
         return(NULL)

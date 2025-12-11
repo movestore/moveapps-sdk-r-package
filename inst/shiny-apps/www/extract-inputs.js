@@ -81,6 +81,11 @@ function getSingleInputValue(inputEl) {
             return inputEl.files;
         case 'select-multiple':
             return Array.from(inputEl.selectedOptions || []).map(option => option.value);
+        case 'password':
+            if(inputEl.value && inputEl.value.length > 0) {
+                return '***masked***'
+            }
+            return "";
         default:
             return inputEl.value;
     }
