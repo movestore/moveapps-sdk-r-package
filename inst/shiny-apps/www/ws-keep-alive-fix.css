@@ -3,5 +3,5 @@
  * kudos: https://github.com/rstudio/shiny/issues/2110#issuecomment-419971302
 */
 #ws_heartbeat {
-    visibility: hidden;
+    display: none;
 }
