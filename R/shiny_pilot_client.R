@@ -48,9 +48,9 @@ httpClientLogging <- function() {
 #' }
 notifyDone <- function(executionType) {
   if (Sys.getenv(x = "HTTP_CLIENT_FAKE", "no") == "yes") {
+    logger.debug("interrupted notify done as app is running w/ HTTP_CLIENT_FAKE=yes")
     return()
   }
-  logger.debug("notify done with success")
   response <- httr::POST(
     paste(pilotEndpoint(), "/pilot/api/v1/copilot/done", sep = ""),
     body = jsonlite::toJSON(list("success" = TRUE, "executionType" = executionType), auto_unbox = TRUE),
@@ -58,6 +58,7 @@ notifyDone <- function(executionType) {
     httr::content_type_json(),
     if (httpClientLogging()) httr::verbose(info = TRUE, data_out = TRUE, data_in = TRUE)
   )
+  logger.debug("notify done with success")
 }
 
 #' Push Shiny Bookmark to Pilot
@@ -78,6 +79,7 @@ notifyDone <- function(executionType) {
 #' }
 notifyPushBookmark <- function(fileName) {
   if (Sys.getenv(x = "HTTP_CLIENT_FAKE", "no") == "yes") {
+    logger.debug("interrupted notify push boorkmark as app is running w/ HTTP_CLIENT_FAKE=yes")
     return()
   }
   logger.debug(paste("Notify pilot to push bookmark", fileName))
@@ -119,6 +121,7 @@ notifyPushBookmark <- function(fileName) {
 #' }
 storeConfiguration <- function(configuration) {
   if (Sys.getenv(x = "HTTP_CLIENT_FAKE", "no") == "yes") {
+    logger.debug("interrupted store configuration as app is running w/ HTTP_CLIENT_FAKE=yes")
     return()
   }
   logger.debug("Storing configuration in pilot: %s", configuration)
