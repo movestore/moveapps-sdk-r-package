@@ -25,7 +25,8 @@ ensureBookmarkDirExists <- function() {
 #' @param url Character string. The bookmark URL containing the state ID parameter.
 #'   Expected to contain a `_state_id_` query parameter.
 #'
-#' @return No return value, called for side effects (file operations and logging).
+#' @return Invisibly \code{TRUE} if the bookmark was saved, otherwise invisibly
+#'   \code{FALSE}. Called mainly for side effects (file operations and logging).
 #'
 #' @details
 #' The function performs the following operations:
@@ -61,9 +62,11 @@ saveBookmarkAsLatest <- function(url) {
       )
       fs::dir_delete(fs::path("shiny_bookmarks", stateId))
       logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "to", bookmarkDir))
+      invisible(TRUE)
     },
     error = function(e) {
       logger.error(paste("[bookmark] Could not save the shiny bookmark as latest:", e))
+      invisible(FALSE)
     }
   )
 }
@@ -121,6 +124,8 @@ restoreShinyBookmark <- function(session) {
       if(fs::file_exists(bookmarkRdsTargetPath) && is.null(queryString$`_state_id_`)) {
         shiny::updateQueryString(queryString = "?_state_id_=latest")
         logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
+        # no "leave page" warning about unsaved settings for this reload
+        session$sendCustomMessage("ma-reload-requested", list())
         session$reload()
       }
     },
@@ -166,6 +171,8 @@ restoreDefaultSettings <- function(session) {
       logger.debug("[bookmark] Deleted the stored shiny bookmark")
       shiny::updateQueryString(queryString = paste0("?", restoreDefaultsQueryParam, "=true"), mode = "replace")
       logger.debug("[bookmark] Reloading session to restore the default settings of the app")
+      # no "leave page" warning about unsaved settings for this reload
+      session$sendCustomMessage("ma-reload-requested", list())
       session$reload()
     },
     error = function(e) {

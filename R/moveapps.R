@@ -103,6 +103,8 @@ runMoveAppsApp <- function() {
 #' \itemize{
 #'   \item WebSocket keep-alive JavaScript fix and associated CSS for connection stability
 #'   \item Custom JavaScript for extracting Shiny input values to JSON format
+#'   \item Custom JavaScript showing a warning while changed settings are not stored yet,
+#'     also when the page is closed
 #'   \item The main Shiny module user interface via \code{shinyModuleUserInterface}
 #'   \item WebSocket heartbeat text output for maintaining connection during long operations
 #'   \item A button for restoring the default settings of the app
@@ -125,6 +127,8 @@ runMoveAppsApp <- function() {
 #'   \item \code{ws-keep-alive-fix.js}: JavaScript for WebSocket connection maintenance
 #'   \item \code{ws-keep-alive-fix.css}: CSS styles for WebSocket fix components
 #'   \item \code{extract-inputs.js}: JavaScript for extracting input values to JSON
+#'   \item \code{unsaved-settings-warning.js}: JavaScript for the warning about not yet stored settings
+#'     (on the page and when closing it)
 #' }
 #'
 #' @seealso
@@ -157,6 +161,7 @@ createMoveAppsShinyUI <- function(request) {
     includeScript(system.file("shiny-apps/www/ws-keep-alive-fix.js", package = "moveapps")),
     includeCSS(system.file("shiny-apps/www/ws-keep-alive-fix.css", package = "moveapps")),
     includeScript(system.file("shiny-apps/www/extract-inputs.js", package = "moveapps")),
+    includeScript(system.file("shiny-apps/www/unsaved-settings-warning.js", package = "moveapps")),
     
     # ws-heartbeat fix
     # kudos: https://github.com/rstudio/shiny/issues/2110#issuecomment-419971302
@@ -165,6 +170,8 @@ createMoveAppsShinyUI <- function(request) {
     # store the current state (as a shiny bookmark) or restore the app's default settings
     tags$div(
       style = "display: flex; justify-content: flex-end; gap: 0.5em;",
+      # shown by `unsaved-settings-warning.js` while the settings differ from the stored ones
+      tags$span(id = "ma_unsaved_settings", class = "text-warning", role = "status", style = "display: none; align-self: center; font-weight: bold;", icon(name = "triangle-exclamation"), "Changed settings are not stored yet. Click 'Store settings' to keep them for future runs of the workflow."),
       actionButton(inputId = 'ma_restore_defaults', label = "Restore default settings", title = "Click here to delete the stored settings and reset all settings to the default values of the app", class = "btn btn-outline-secondary", style = "margin: 0;"),
       bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success", style = "margin: 0;")
     ),
@@ -196,7 +203,8 @@ createMoveAppsShinyUI <- function(request) {
 #'   \item Reads input data using \code{\link{readInput}} from the configured source file
 #'   \item Calls the Shiny module (\code{shinyModule}) with data if available
 #'   \item Automatically restores bookmarks from previous sessions on startup
-#'   \item Handles bookmark creation when the bookmark button is clicked
+#'   \item Handles bookmark creation when the bookmark button is clicked and hides the
+#'     warning about not yet stored settings once the bookmark is saved
 #'   \item Deletes the stored settings and reloads the app with its default settings (which are then stored) when the restore-defaults button is clicked
 #'   \item Extracts and saves Shiny input values as JSON for external access
 #'   \item Stores computation results to output file when processing completes
@@ -327,7 +335,10 @@ createMoveAppsShinyServer <- function(input, output, session) {
   # hook after persisting the bookmark
   # see https://shiny.rstudio.com/articles/advanced-bookmarking.html
   onBookmarked(function(url) {
-    moveapps::saveBookmarkAsLatest(url)
+    if (moveapps::saveBookmarkAsLatest(url)) {
+      # hides the warning about not yet stored settings
+      session$sendCustomMessage("ma-settings-stored", list())
+    }
     moveapps::notifyPushBookmark("input.rds")
   })
 }
