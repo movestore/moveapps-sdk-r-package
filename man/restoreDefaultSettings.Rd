@@ -10,17 +10,19 @@ restoreDefaultSettings(session)
 \item{session}{A Shiny session object, typically provided by the Shiny server function.}
 }
 \value{
-No return value, called for side effects (session reload and logging).
+No return value, called for side effects (file deletion, session reload and logging).
 }
 \description{
-Reloads the Shiny session without restoring any bookmark, so that all inputs
-show the default values defined by the app in \code{shinyModuleUserInterface}.
+Deletes the stored settings and reloads the Shiny session without restoring any
+bookmark, so that all inputs show the default values defined by the app in
+\code{shinyModuleUserInterface}.
 }
 \details{
-The stored settings (the "latest" bookmark) are not deleted. The defaults only
-become the stored settings once the user clicks "Store settings" afterwards.
-The reload carries a marker in the query string which tells
-\code{\link{restoreShinyBookmark}} to skip the automatic restore once.
+The function deletes the stored settings (\code{input.rds} and \code{input.json}
+of the "latest" bookmark) and reloads the session with a marker in the query string.
+The marker tells \code{\link{restoreShinyBookmark}} to skip the automatic restore.
+\code{\link{createMoveAppsShinyServer}} then stores the default settings, which
+also replaces the copy of the stored settings on MoveApps.
 }
 \examples{
 \dontrun{

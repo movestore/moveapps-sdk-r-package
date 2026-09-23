@@ -10,7 +10,9 @@ restoreShinyBookmark(session)
 \item{session}{A Shiny session object, typically provided by the Shiny server function.}
 }
 \value{
-No return value, called for side effects (session reload and logging).
+Invisibly \code{TRUE} if default settings were requested via
+\code{\link{restoreDefaultSettings}} (no bookmark is restored then), otherwise
+invisibly \code{FALSE}. Called mainly for side effects (session reload and logging).
 }
 \description{
 Automatically restores the latest Shiny bookmark if one exists and hasn't been

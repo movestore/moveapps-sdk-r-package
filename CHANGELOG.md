@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- "Restore default settings" (shiny) button next to the "Store settings" button, which reloads the app with its default settings (new exported function `restoreDefaultSettings()`)
+- "Restore default settings" (shiny) button next to the "Store settings" button, which deletes the stored settings, reloads the app with its default settings and stores these (new exported function `restoreDefaultSettings()`)
 
 ## [v1.0.3] - 2025-12-16
 

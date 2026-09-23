@@ -33,7 +33,7 @@ The function performs the following operations:
 \item Calls the Shiny module (\code{shinyModule}) with data if available
 \item Automatically restores bookmarks from previous sessions on startup
 \item Handles bookmark creation when the bookmark button is clicked
-\item Reloads the app with its default settings when the restore-defaults button is clicked
+\item Deletes the stored settings and reloads the app with its default settings (which are then stored) when the restore-defaults button is clicked
 \item Extracts and saves Shiny input values as JSON for external access
 \item Stores computation results to output file when processing completes
 \item Implements WebSocket heartbeat mechanism for connection stability
