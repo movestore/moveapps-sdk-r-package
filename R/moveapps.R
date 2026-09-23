@@ -200,7 +200,8 @@ createMoveAppsShinyUI <- function(request) {
 #' \itemize{
 #'   \item Reads input data using \code{\link{readInput}} from the configured source file
 #'   \item Calls the Shiny module (\code{shinyModule}) with data if available
-#'   \item Automatically restores bookmarks from previous sessions on startup
+#'   \item Automatically restores bookmarks from previous sessions on startup and ignores stored
+#'     settings which do not fit the current input data (see \code{\link{ignoreNotApplicableSettings}})
 #'   \item Handles bookmark creation when the bookmark button is clicked and shows the
 #'     warning about not yet stored settings again if the bookmark could not be saved or uploaded
 #'   \item Asks for confirmation when the restore-defaults button is clicked, then deletes the stored
@@ -218,8 +219,10 @@ createMoveAppsShinyUI <- function(request) {
 #'   \item Custom JSON bookmarking for external access to input values
 #'   \item Automatic bookmark restoration on application startup
 #'   \item Restoring the default settings of this App via \code{\link{restoreDefaultSettings}}
+#'   \item Ignoring stored settings which do not fit the current input data via
+#'     \code{\link{ignoreNotApplicableSettings}}
 #'   \item Exclusion of the SDK's buttons and internal inputs (WebSocket heartbeat, JSON
-#'     extraction) from saved state
+#'     extraction, startup settings) from saved state
 #' }
 #'
 #' @section Error Handling:
@@ -240,7 +243,7 @@ createMoveAppsShinyUI <- function(request) {
 #' \code{\link{createMoveAppsShinyUI}} for the corresponding UI function,
 #' \code{\link{readInput}} for data input,
 #' \code{\link{storeResult}} for result storage,
-#' \code{\link{restoreShinyBookmark}}, \code{\link{restoreDefaultSettings}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
+#' \code{\link{restoreShinyBookmark}}, \code{\link{restoreDefaultSettings}}, \code{\link{ignoreNotApplicableSettings}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
 #' \code{\link{storeToFile}} for error logging,
 #' \code{\link{notifyDone}}, \code{\link{notifyPushBookmark}} for external notifications
 #'
@@ -299,6 +302,10 @@ createMoveAppsShinyServer <- function(input, output, session) {
           # store the default settings (replaces the deleted settings, also on MoveApps)
           storeSettings()
         }
+        if (showsIgnoredSettings(session)) {
+          # some stored settings did not fit the input data and show their defaults: not stored yet
+          session$sendCustomMessage("ma-settings-not-applicable", list())
+        }
         # Trigger extractShinyInput after restoring the bookmark
         session$sendCustomMessage("extract-shiny-input", list())
       },
@@ -306,7 +313,12 @@ createMoveAppsShinyServer <- function(input, output, session) {
     )
 
     # Need to exclude the buttons and the SDK's internal inputs from being bookmarked
-    setBookmarkExclude(c("ma_bookmark", "ma_restore_defaults", "ma_restore_defaults_confirm", "heartbeat", "shiny_input_json"))
+    setBookmarkExclude(c("ma_bookmark", "ma_restore_defaults", "ma_restore_defaults_confirm", "heartbeat", "shiny_input_json", "ma_startup_settings"))
+    # Once this App finished starting, stored settings which do not fit the input data are ignored
+    # (reported by `unsaved-settings-warning.js` with the ids of all settings shown in the UI)
+    observeEvent(input$ma_startup_settings, {
+      moveapps::ignoreNotApplicableSettings(session, unlist(input$ma_startup_settings))
+    })
     # Ask for confirmation before deleting the stored settings
     observeEvent(input$ma_restore_defaults, {
       showModal(modalDialog(

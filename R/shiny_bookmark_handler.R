@@ -11,6 +11,10 @@ restoreDefaultsQueryParam <- "_ma_defaults_"
 # one-time tokens (as names) of requested reloads with the default settings; a URL with an unknown
 # token (e.g. an old or copied URL) must not replace the stored settings
 restoreDefaultsTokens <- new.env(parent = emptyenv())
+# copy of the stored settings without the ones which do not fit the current input data
+# (shiny only accepts letters and digits in a state id)
+adjustedStateId <- "latestadjusted"
+adjustedStateDir <- fs::path(bookmarkRootDir, adjustedStateId)
 
 ensureBookmarkDirExists <- function() {
   if(!fs::dir_exists(bookmarkDir)){
@@ -189,6 +193,93 @@ restoreDefaultSettings <- function(session) {
       logger.error(paste("[bookmark] Could not restore the default settings:", e))
     }
   )
+}
+
+#' Find Stored Settings Which Could Not Be Applied
+#'
+#' Compares the stored value of each setting with the value shown after restoring it.
+#' A difference means that the stored value could not be applied, e.g. because the
+#' choices created via \code{renderUI} from the input data do not contain it anymore.
+#'
+#' @param storedInputs Named list of the stored input values (content of \code{input.rds}).
+#' @param currentInputs Named list of the current input values.
+#' @param settingIds Character vector of the ids of the settings shown in the UI.
+#'
+#' @return Character vector of the ids of the settings whose stored value was not applied.
+#' @noRd
+notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
+  ids <- intersect(settingIds, names(storedInputs))
+  Filter(function(id) {
+    !isTRUE(all.equal(storedInputs[[id]], currentInputs[[id]], check.attributes = FALSE))
+  }, ids)
+}
+
+#' Ignore Stored Settings Which Do Not Fit the Input Data
+#'
+#' Checks, after the stored settings were restored, whether each of them could be applied.
+#' Settings whose stored value is not available anymore (e.g. a track or attribute which is
+#' not part of the current input data) are removed from a copy of the stored settings, and
+#' the session is reloaded with this copy. These settings then show the default values of
+#' this App. The stored settings themselves stay untouched until "Store settings" is clicked.
+#'
+#' @param session A Shiny session object, typically provided by the Shiny server function.
+#' @param settingIds Character vector of the ids of the settings shown in the UI (reported by
+#'   the browser once this App finished starting).
+#'
+#' @return Invisibly \code{TRUE} if the session is reloaded without the settings which do not
+#'   fit, otherwise invisibly \code{FALSE}.
+#'
+#' @details
+#' The check only runs for a session which restored the stored settings (state id "latest").
+#' A setting counts as not fitting if the value shown differs from the stored value in any
+#' way, also if only parts of a stored selection are available anymore. The reload uses the
+#' state id "latestadjusted", so the check does not run again for the reloaded session.
+#'
+#' @examples
+#' \dontrun{
+#' # In a Shiny server function
+#' observeEvent(input$ma_startup_settings, {
+#'   ignoreNotApplicableSettings(session, unlist(input$ma_startup_settings))
+#' })
+#' }
+#'
+#' @seealso \code{\link{restoreShinyBookmark}} for restoring bookmarks
+#' @export
+ignoreNotApplicableSettings <- function(session, settingIds) {
+  tryCatch(
+    {
+      stateId <- shiny::parseQueryString(session$clientData$url_search)$`_state_id_`
+      if (!identical(stateId, "latest") || !fs::file_exists(bookmarkRdsTargetPath)) {
+        return(invisible(FALSE))
+      }
+      storedInputs <- readRDS(bookmarkRdsTargetPath)
+      currentInputs <- shiny::isolate(lapply(settingIds, function(id) session$input[[id]]))
+      names(currentInputs) <- settingIds
+      ids <- notApplicableSettings(storedInputs, currentInputs, settingIds)
+      if (length(ids) == 0) {
+        return(invisible(FALSE))
+      }
+      fs::dir_create(adjustedStateDir)
+      saveRDS(storedInputs[setdiff(names(storedInputs), ids)], fs::path(adjustedStateDir, bookmarkFileName))
+      logger.info(paste("[bookmark] Stored settings which do not fit the input data are ignored:", paste(ids, collapse = ", ")))
+      shiny::updateQueryString(queryString = paste0("?_state_id_=", adjustedStateId), mode = "replace", session = session)
+      session$reload()
+      invisible(TRUE)
+    },
+    error = function(e) {
+      logger.error(paste("[bookmark] Could not check whether the stored settings fit the input data:", e))
+      invisible(FALSE)
+    }
+  )
+}
+
+#' Check for Ignored Stored Settings
+#'
+#' @param session A Shiny session object.
+#' @return \code{TRUE} if the session was reloaded by \code{\link{ignoreNotApplicableSettings}}.
+#' @noRd
+showsIgnoredSettings <- function(session) {
+  identical(shiny::parseQueryString(session$clientData$url_search)$`_state_id_`, adjustedStateId)
 }
 
 #' Save Shiny Input as JSON
