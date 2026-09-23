@@ -169,8 +169,8 @@ createMoveAppsShinyUI <- function(request) {
     tags$div(
       style = "display: flex; justify-content: flex-end; gap: 0.5em;",
       # shown by `unsaved-settings-warning.js` while the settings differ from the stored ones
-      tags$span(id = "ma_unsaved_settings", role = "status", style = "display: none; align-self: center; font-weight: bold; color: #ff8c00;", icon(name = "triangle-exclamation"), "Changed settings are not stored yet. Click 'Store settings' to keep them for future runs of the workflow."),
-      actionButton(inputId = 'ma_restore_defaults', label = "Restore default settings", title = "Click here to delete the stored settings and reset all settings to the default values of this App", class = "btn btn-outline-secondary", style = "margin: 0;"),
+      tags$span(id = "ma_unsaved_settings", role = "status", style = "display: none; align-self: center; font-weight: bold; color: #ff8c00;", shiny::icon(name = "triangle-exclamation"), "Changed settings are not stored yet. Click 'Store settings' to keep them for future runs of the workflow."),
+      shiny::actionButton(inputId = 'ma_restore_defaults', label = "Restore default settings", title = "Click here to delete the stored settings and reset all settings to the default values of this App", class = "btn btn-outline-secondary", style = "margin: 0;"),
       bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success", style = "margin: 0;")
     ),
     
@@ -334,19 +334,19 @@ createMoveAppsShinyServer <- function(input, output, session) {
     })
     # Ask for confirmation before deleting the stored settings
     observeEvent(input$ma_restore_defaults, {
-      showModal(modalDialog(
+      shiny::showModal(shiny::modalDialog(
         title = "Restore default settings?",
         "All settings are reset to the default values of this App. Your stored settings are deleted and can't be recovered.",
-        footer = tagList(
-          modalButton(label = "Cancel"),
-          actionButton(inputId = "ma_restore_defaults_confirm", label = "Restore defaults", class = "btn btn-danger")
+        footer = shiny::tagList(
+          shiny::modalButton(label = "Cancel"),
+          shiny::actionButton(inputId = "ma_restore_defaults_confirm", label = "Restore defaults", class = "btn btn-danger")
         ),
         easyClose = TRUE
       ))
     })
     # Delete the stored settings and reload the UI with the default values of this App
     observeEvent(input$ma_restore_defaults_confirm, {
-      removeModal()
+      shiny::removeModal()
       moveapps::restoreDefaultSettings(session)
     })
     # Trigger bookmarking with button (needed b/c of custom bookmark button ID)
