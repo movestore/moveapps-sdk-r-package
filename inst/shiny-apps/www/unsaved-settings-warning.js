@@ -7,6 +7,9 @@ $(function () {
     const changedIds = new Set();
     // the latest attempt to store the settings failed: show the warning until storing succeeds
     let storeFailed = false;
+    // until the user clicks or types for the first time, all changes are part of starting this App
+    // (e.g. inputs filled by the server once the data is loaded) and are taken as stored
+    let userInteracted = false;
 
     // value of a bound shiny input (undefined for action buttons, e.g. "Store settings")
     function settingValue(el) {
@@ -43,6 +46,10 @@ $(function () {
         if (!warning || storedSettings === null) {
             return;
         }
+        if (!userInteracted) {
+            storedSettings = currentSettings();
+            changedIds.clear();
+        }
         const settings = currentSettings();
         Object.keys(settings).forEach(function (id) {
             if (!(id in storedSettings)) {
@@ -63,6 +70,19 @@ $(function () {
 
     // the first idle state after connecting: UI (incl. restored bookmark and server-side updates) is settled
     $(document).one('shiny:idle', rememberStoredSettings);
+    // the first real (trusted) click or key press of the user ends the start of this App; it happens
+    // before the resulting change of a setting, so the settings at this moment are taken as stored
+    function onFirstUserInteraction(event) {
+        if (!event.isTrusted || userInteracted) {
+            return;
+        }
+        if (storedSettings !== null) {
+            rememberStoredSettings();
+        }
+        userInteracted = true;
+    }
+    document.addEventListener('pointerdown', onFirstUserInteraction, true);
+    document.addEventListener('keydown', onFirstUserInteraction, true);
     // an input (re)created by this App (e.g. via renderUI) shows what the next run shows as well:
     // take its initial value as stored, so it does not count as a change. An input which was changed
     // (and not stored) before it was re-rendered keeps its stored value, so the change is not hidden.
