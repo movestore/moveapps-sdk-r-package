@@ -36,6 +36,18 @@ test_that("saveBookmarkAsLatest moves the bookmark and returns TRUE", {
   expect_false(dir.exists("shiny_bookmarks/abc123"))
 })
 
+test_that("saveBookmarkAsLatest removes the outdated copy of the stored settings without the ones which did not fit", {
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latestadjusted", recursive = TRUE)
+  saveRDS(list(setting = "old"), "shiny_bookmarks/latestadjusted/input.rds")
+  dir.create("shiny_bookmarks/abc123", recursive = TRUE)
+  saveRDS(list(setting = "new"), "shiny_bookmarks/abc123/input.rds")
+
+  expect_true(moveapps::saveBookmarkAsLatest("http://localhost:3838/?_state_id_=abc123"))
+  expect_false(dir.exists("shiny_bookmarks/latestadjusted"))
+})
+
 test_that("saveBookmarkAsLatest returns FALSE if the bookmark does not exist", {
   old <- setwd(newTempDir())
   on.exit(setwd(old), add = TRUE)

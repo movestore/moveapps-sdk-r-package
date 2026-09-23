@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `saveBookmarkAsLatest()` and `notifyPushBookmark()` return (invisibly) whether the bookmark was saved/uploaded
 - The shiny bookmark is only uploaded if it was saved successfully
 - The WebSocket heartbeat and the JSON extraction are no longer stored in the shiny bookmark
+- `input.json` is written (and uploaded) again once the (shiny) App finished starting, so that it also contains the settings created via `renderUI`
 
 ## [v1.0.3] - 2025-12-16
 

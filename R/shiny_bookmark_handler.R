@@ -42,6 +42,8 @@ ensureBookmarkDirExists <- function() {
 #'   \item Creates the target "latest" bookmark directory if it doesn't exist
 #'   \item Moves the bookmark file from the temporary state directory to the latest location
 #'   \item Removes the temporary state directory to clean up
+#'   \item Removes the copy of the previously stored settings without the ones which did not fit
+#'     the input data (see \code{\link{ignoreNotApplicableSettings}}), as it is outdated now
 #'   \item Logs the operation for debugging purposes
 #' }
 #'
@@ -68,6 +70,9 @@ saveBookmarkAsLatest <- function(url) {
         new_path = bookmarkRdsTargetPath
       )
       fs::dir_delete(fs::path("shiny_bookmarks", stateId))
+      if (fs::dir_exists(adjustedStateDir)) {
+        fs::dir_delete(adjustedStateDir)
+      }
       logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "to", bookmarkDir))
       invisible(TRUE)
     },
@@ -239,7 +244,7 @@ notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
 #' \dontrun{
 #' # In a Shiny server function
 #' observeEvent(input$ma_startup_settings, {
-#'   ignoreNotApplicableSettings(session, unlist(input$ma_startup_settings))
+#'   ignoreNotApplicableSettings(session, unlist(input$ma_startup_settings$settingIds))
 #' })
 #' }
 #'

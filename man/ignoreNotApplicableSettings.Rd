@@ -33,7 +33,7 @@ state id "latestadjusted", so the check does not run again for the reloaded sess
 \dontrun{
 # In a Shiny server function
 observeEvent(input$ma_startup_settings, {
-  ignoreNotApplicableSettings(session, unlist(input$ma_startup_settings))
+  ignoreNotApplicableSettings(session, unlist(input$ma_startup_settings$settingIds))
 })
 }
 

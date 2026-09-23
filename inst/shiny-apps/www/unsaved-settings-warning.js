@@ -88,16 +88,17 @@ $(function () {
         clearTimeout(startupTimer);
         startupTimer = setTimeout(reportStartupSettings, 1500);
     }
-    // report the ids of all settings shown; not if the user already started changing settings
+    // report the ids of all settings shown, and whether the user already started changing settings
     function reportStartupSettings() {
         if (startupReported) {
             return;
         }
         startupReported = true;
         clearTimeout(startupTimer);
-        if (!userInteracted) {
-            Shiny.setInputValue('ma_startup_settings', Object.keys(currentSettings()), {priority: 'event'});
-        }
+        Shiny.setInputValue('ma_startup_settings', {
+            settingIds: Object.keys(currentSettings()),
+            userInteracted: userInteracted
+        }, {priority: 'event'});
     }
     $(document).on('shiny:idle shiny:bound', startupActivity);
     $(document).on('shiny:inputchanged', function (event) {
