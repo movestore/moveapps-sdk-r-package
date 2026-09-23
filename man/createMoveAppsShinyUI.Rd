@@ -29,6 +29,7 @@ The function creates a UI that includes the following components:
 \item Custom JavaScript for extracting Shiny input values to JSON format
 \item The main Shiny module user interface via \code{shinyModuleUserInterface}
 \item WebSocket heartbeat text output for maintaining connection during long operations
+\item A button for restoring the default settings of the app
 \item A bookmark button for saving application settings with custom styling
 }
 

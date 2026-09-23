@@ -33,6 +33,7 @@ The function performs the following operations:
 \item Calls the Shiny module (\code{shinyModule}) with data if available
 \item Automatically restores bookmarks from previous sessions on startup
 \item Handles bookmark creation when the bookmark button is clicked
+\item Reloads the app with its default settings when the restore-defaults button is clicked
 \item Extracts and saves Shiny input values as JSON for external access
 \item Stores computation results to output file when processing completes
 \item Implements WebSocket heartbeat mechanism for connection stability
@@ -46,7 +47,8 @@ The function implements a dual bookmarking system:
 \item Native Shiny RDS bookmarking for session restoration
 \item Custom JSON bookmarking for external access to input values
 \item Automatic bookmark restoration on application startup
-\item Exclusion of the bookmark button itself from saved state
+\item Restoring the app's default settings via \code{\link{restoreDefaultSettings}}
+\item Exclusion of the bookmark and restore-defaults buttons from saved state
 }
 }
 
@@ -93,7 +95,7 @@ shinyApp(ui = ui, server = server, enableBookmarking = "server")
 \code{\link{createMoveAppsShinyUI}} for the corresponding UI function,
 \code{\link{readInput}} for data input,
 \code{\link{storeResult}} for result storage,
-\code{\link{restoreShinyBookmark}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
+\code{\link{restoreShinyBookmark}}, \code{\link{restoreDefaultSettings}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
 \code{\link{storeToFile}} for error logging,
 \code{\link{notifyDone}}, \code{\link{notifyPushBookmark}} for external notifications
 }

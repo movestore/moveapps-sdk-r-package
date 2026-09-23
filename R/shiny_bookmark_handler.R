@@ -6,6 +6,8 @@ bookmarkRdsTargetPath <- fs::path(bookmarkDir, bookmarkFileName)
 # `input.json` is a custom file-name and a custom file-content to access the shiny values in plain text
 bookmarkJsonName <- "input.json"
 bookmarkJsonTargetPath <- fs::path(bookmarkDir, bookmarkJsonName)
+# query parameter marking a session reload that should start with the app's default settings
+restoreDefaultsQueryParam <- "_ma_defaults_"
 
 ensureBookmarkDirExists <- function() {
   if(!fs::dir_exists(bookmarkDir)){
@@ -79,6 +81,8 @@ saveBookmarkAsLatest <- function(url) {
 #' @details
 #' The function performs the following checks and operations:
 #' \enumerate{
+#'   \item Skips the restore if default settings were requested via
+#'     \code{\link{restoreDefaultSettings}} (and removes that request from the URL)
 #'   \item Checks if a bookmark file exists in the "latest" location
 #'   \item Verifies that no state ID is currently present in the session URL
 #'   \item If both conditions are met, updates the query string to load the "latest" bookmark
@@ -105,7 +109,15 @@ saveBookmarkAsLatest <- function(url) {
 restoreShinyBookmark <- function(session) {
   tryCatch(
     {
-      if(fs::file_exists(bookmarkRdsTargetPath) && is.null(shiny::parseQueryString(session$clientData$url_search)$`_state_id_`)) {
+      queryString <- shiny::parseQueryString(session$clientData$url_search)
+      if (!is.null(queryString[[restoreDefaultsQueryParam]])) {
+        # the user asked for the default settings: do not restore the bookmark this time,
+        # but drop the marker so that a later reload restores the stored settings again
+        shiny::updateQueryString(queryString = "?", mode = "replace")
+        logger.debug("[bookmark] Skipped restoring the shiny bookmark b/c default settings were requested")
+        return(invisible(NULL))
+      }
+      if(fs::file_exists(bookmarkRdsTargetPath) && is.null(queryString$`_state_id_`)) {
         shiny::updateQueryString(queryString = "?_state_id_=latest")
         logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
         session$reload()
@@ -113,6 +125,44 @@ restoreShinyBookmark <- function(session) {
     },
     error = function(e) {
       logger.error(paste("[bookmark] Could not restore the shiny bookmark:", e))
+    }
+  )
+}
+
+#' Restore Default Settings
+#'
+#' Reloads the Shiny session without restoring any bookmark, so that all inputs
+#' show the default values defined by the app in \code{shinyModuleUserInterface}.
+#'
+#' @param session A Shiny session object, typically provided by the Shiny server function.
+#'
+#' @return No return value, called for side effects (session reload and logging).
+#'
+#' @details
+#' The stored settings (the "latest" bookmark) are not deleted. The defaults only
+#' become the stored settings once the user clicks "Store settings" afterwards.
+#' The reload carries a marker in the query string which tells
+#' \code{\link{restoreShinyBookmark}} to skip the automatic restore once.
+#'
+#' @examples
+#' \dontrun{
+#' # In a Shiny server function
+#' observeEvent(input$ma_restore_defaults, {
+#'   restoreDefaultSettings(session)
+#' })
+#' }
+#'
+#' @seealso \code{\link{restoreShinyBookmark}} for restoring bookmarks
+#' @export
+restoreDefaultSettings <- function(session) {
+  tryCatch(
+    {
+      shiny::updateQueryString(queryString = paste0("?", restoreDefaultsQueryParam, "=true"), mode = "replace")
+      logger.debug("[bookmark] Reloading session to restore the default settings of the app")
+      session$reload()
+    },
+    error = function(e) {
+      logger.error(paste("[bookmark] Could not restore the default settings:", e))
     }
   )
 }

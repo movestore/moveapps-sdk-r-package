@@ -105,6 +105,7 @@ runMoveAppsApp <- function() {
 #'   \item Custom JavaScript for extracting Shiny input values to JSON format
 #'   \item The main Shiny module user interface via \code{shinyModuleUserInterface}
 #'   \item WebSocket heartbeat text output for maintaining connection during long operations
+#'   \item A button for restoring the default settings of the app
 #'   \item A bookmark button for saving application settings with custom styling
 #' }
 #'
@@ -161,9 +162,10 @@ createMoveAppsShinyUI <- function(request) {
     # kudos: https://github.com/rstudio/shiny/issues/2110#issuecomment-419971302
     textOutput("ws_heartbeat"),
     
-    # store the current state (as a shiny bookmark)
+    # store the current state (as a shiny bookmark) or restore the app's default settings
     tags$div(
-      style = "display: flex; justify-content: flex-end;",
+      style = "display: flex; justify-content: flex-end; gap: 0.5em;",
+      actionButton(inputId = 'ma_restore_defaults', label = "Restore default settings", title = "Click here to reset all settings to the default values of the app. Click 'Store settings' afterwards to keep them for future runs of the workflow", class = "btn btn-outline-secondary", style = "margin: 0;"),
       bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success", style = "margin: 0;")
     ),
     
@@ -195,6 +197,7 @@ createMoveAppsShinyUI <- function(request) {
 #'   \item Calls the Shiny module (\code{shinyModule}) with data if available
 #'   \item Automatically restores bookmarks from previous sessions on startup
 #'   \item Handles bookmark creation when the bookmark button is clicked
+#'   \item Reloads the app with its default settings when the restore-defaults button is clicked
 #'   \item Extracts and saves Shiny input values as JSON for external access
 #'   \item Stores computation results to output file when processing completes
 #'   \item Implements WebSocket heartbeat mechanism for connection stability
@@ -207,7 +210,8 @@ createMoveAppsShinyUI <- function(request) {
 #'   \item Native Shiny RDS bookmarking for session restoration
 #'   \item Custom JSON bookmarking for external access to input values
 #'   \item Automatic bookmark restoration on application startup
-#'   \item Exclusion of the bookmark button itself from saved state
+#'   \item Restoring the app's default settings via \code{\link{restoreDefaultSettings}}
+#'   \item Exclusion of the bookmark and restore-defaults buttons from saved state
 #' }
 #'
 #' @section Error Handling:
@@ -228,7 +232,7 @@ createMoveAppsShinyUI <- function(request) {
 #' \code{\link{createMoveAppsShinyUI}} for the corresponding UI function,
 #' \code{\link{readInput}} for data input,
 #' \code{\link{storeResult}} for result storage,
-#' \code{\link{restoreShinyBookmark}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
+#' \code{\link{restoreShinyBookmark}}, \code{\link{restoreDefaultSettings}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
 #' \code{\link{storeToFile}} for error logging,
 #' \code{\link{notifyDone}}, \code{\link{notifyPushBookmark}} for external notifications
 #'
@@ -274,8 +278,12 @@ createMoveAppsShinyServer <- function(input, output, session) {
       once = TRUE
     )
 
-    # Need to exclude the button itself from being bookmarked
-    setBookmarkExclude(c("ma_bookmark"))
+    # Need to exclude the buttons themselves from being bookmarked
+    setBookmarkExclude(c("ma_bookmark", "ma_restore_defaults"))
+    # Reload the UI with the default values of the app (the stored settings stay untouched)
+    observeEvent(input$ma_restore_defaults, {
+      moveapps::restoreDefaultSettings(session)
+    })
     # Trigger bookmarking with button (needed b/c of custom bookmark button ID)
     observeEvent(input$ma_bookmark, {
       # call the (native shiny) RDS bookmarking

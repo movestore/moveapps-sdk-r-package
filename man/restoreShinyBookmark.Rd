@@ -20,6 +20,8 @@ with the appropriate state ID to restore the application state.
 \details{
 The function performs the following checks and operations:
 \enumerate{
+\item Skips the restore if default settings were requested via
+\code{\link{restoreDefaultSettings}} (and removes that request from the URL)
 \item Checks if a bookmark file exists in the "latest" location
 \item Verifies that no state ID is currently present in the session URL
 \item If both conditions are met, updates the query string to load the "latest" bookmark
