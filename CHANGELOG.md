@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - "Restore default settings" (shiny) button next to the "Store settings" button, which deletes the stored settings, reloads the app with its default settings and stores these (new exported function `restoreDefaultSettings()`)
 - Warning next to the "Store settings" (shiny) button while changed settings are not stored yet
-- Browser confirmation when closing the shiny UI with changed settings that are not stored yet
 
 ### Changed
 - `saveBookmarkAsLatest()` returns (invisibly) whether the bookmark was saved

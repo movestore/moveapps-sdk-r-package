@@ -32,8 +32,8 @@ The function performs the following operations:
 \item Reads input data using \code{\link{readInput}} from the configured source file
 \item Calls the Shiny module (\code{shinyModule}) with data if available
 \item Automatically restores bookmarks from previous sessions on startup
-\item Handles bookmark creation when the bookmark button is clicked and hides the
-warning about not yet stored settings once the bookmark is saved
+\item Handles bookmark creation when the bookmark button is clicked and shows the
+warning about not yet stored settings again if the bookmark could not be saved
 \item Deletes the stored settings and reloads the app with its default settings (which are then stored) when the restore-defaults button is clicked
 \item Extracts and saves Shiny input values as JSON for external access
 \item Stores computation results to output file when processing completes

@@ -124,8 +124,6 @@ restoreShinyBookmark <- function(session) {
       if(fs::file_exists(bookmarkRdsTargetPath) && is.null(queryString$`_state_id_`)) {
         shiny::updateQueryString(queryString = "?_state_id_=latest")
         logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
-        # no "leave page" warning about unsaved settings for this reload
-        session$sendCustomMessage("ma-reload-requested", list())
         session$reload()
       }
     },
@@ -171,8 +169,6 @@ restoreDefaultSettings <- function(session) {
       logger.debug("[bookmark] Deleted the stored shiny bookmark")
       shiny::updateQueryString(queryString = paste0("?", restoreDefaultsQueryParam, "=true"), mode = "replace")
       logger.debug("[bookmark] Reloading session to restore the default settings of the app")
-      # no "leave page" warning about unsaved settings for this reload
-      session$sendCustomMessage("ma-reload-requested", list())
       session$reload()
     },
     error = function(e) {
