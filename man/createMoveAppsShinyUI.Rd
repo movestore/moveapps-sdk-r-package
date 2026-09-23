@@ -30,7 +30,7 @@ The function creates a UI that includes the following components:
 \item Custom JavaScript showing a warning while changed settings are not stored yet
 \item The main Shiny module user interface via \code{shinyModuleUserInterface}
 \item WebSocket heartbeat text output for maintaining connection during long operations
-\item A button for restoring the default settings of the app
+\item A button for restoring the default settings of this App (after confirmation)
 \item A bookmark button for saving application settings with custom styling
 }
 

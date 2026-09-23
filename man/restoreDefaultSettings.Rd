@@ -14,13 +14,14 @@ No return value, called for side effects (file deletion, session reload and logg
 }
 \description{
 Deletes the stored settings and reloads the Shiny session without restoring any
-bookmark, so that all inputs show the default values defined by the app in
+bookmark, so that all inputs show the default values defined by this App in
 \code{shinyModuleUserInterface}.
 }
 \details{
 The function deletes the stored settings (\code{input.rds} and \code{input.json}
 of the "latest" bookmark) and reloads the session with a marker in the query string.
-The marker tells \code{\link{restoreShinyBookmark}} to skip the automatic restore.
+The marker carries a one-time random token and tells \code{\link{restoreShinyBookmark}}
+to skip the automatic restore.
 \code{\link{createMoveAppsShinyServer}} then stores the default settings, which
 also replaces the copy of the stored settings on MoveApps.
 }

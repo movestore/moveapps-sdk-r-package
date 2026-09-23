@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- "Restore default settings" (shiny) button next to the "Store settings" button, which deletes the stored settings, reloads the app with its default settings and stores these (new exported function `restoreDefaultSettings()`)
-- Warning next to the "Store settings" (shiny) button while changed settings are not stored yet
+- "Restore default settings" (shiny) button next to the "Store settings" button, which (after confirmation) deletes the stored settings, reloads this App with its default settings and stores these (new exported function `restoreDefaultSettings()`)
+- Warning next to the "Store settings" (shiny) button while changed settings are not stored yet, or storing them failed
 
 ### Changed
-- `saveBookmarkAsLatest()` returns (invisibly) whether the bookmark was saved
+- `saveBookmarkAsLatest()` and `notifyPushBookmark()` return (invisibly) whether the bookmark was saved/uploaded
+- The shiny bookmark is only uploaded if it was saved successfully
+- The WebSocket heartbeat and the JSON extraction are no longer stored in the shiny bookmark
 
 ## [v1.0.3] - 2025-12-16
 

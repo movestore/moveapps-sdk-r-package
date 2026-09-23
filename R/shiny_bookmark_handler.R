@@ -6,8 +6,11 @@ bookmarkRdsTargetPath <- fs::path(bookmarkDir, bookmarkFileName)
 # `input.json` is a custom file-name and a custom file-content to access the shiny values in plain text
 bookmarkJsonName <- "input.json"
 bookmarkJsonTargetPath <- fs::path(bookmarkDir, bookmarkJsonName)
-# query parameter marking a session reload that should start with the app's default settings
+# query parameter marking a session reload that should start with the default settings of this App
 restoreDefaultsQueryParam <- "_ma_defaults_"
+# one-time tokens (as names) of requested reloads with the default settings; a URL with an unknown
+# token (e.g. an old or copied URL) must not replace the stored settings
+restoreDefaultsTokens <- new.env(parent = emptyenv())
 
 ensureBookmarkDirExists <- function() {
   if(!fs::dir_exists(bookmarkDir)){
@@ -87,7 +90,8 @@ saveBookmarkAsLatest <- function(url) {
 #' The function performs the following checks and operations:
 #' \enumerate{
 #'   \item Skips the restore if default settings were requested via
-#'     \code{\link{restoreDefaultSettings}} (and removes that request from the URL)
+#'     \code{\link{restoreDefaultSettings}} (and removes that request from the URL).
+#'     A request with an unknown token (e.g. from an old or copied URL) is ignored.
 #'   \item Checks if a bookmark file exists in the "latest" location
 #'   \item Verifies that no state ID is currently present in the session URL
 #'   \item If both conditions are met, updates the query string to load the "latest" bookmark
@@ -115,14 +119,20 @@ restoreShinyBookmark <- function(session) {
   tryCatch(
     {
       queryString <- shiny::parseQueryString(session$clientData$url_search)
-      if (!is.null(queryString[[restoreDefaultsQueryParam]])) {
-        # the user asked for the default settings: do not restore any bookmark and drop the marker
-        shiny::updateQueryString(queryString = "?", mode = "replace")
-        logger.debug("[bookmark] Skipped restoring the shiny bookmark b/c default settings were requested")
-        return(invisible(TRUE))
+      defaultsToken <- queryString[[restoreDefaultsQueryParam]]
+      if (!is.null(defaultsToken)) {
+        # drop the marker, so that a later reload restores the stored settings again
+        shiny::updateQueryString(queryString = "?", mode = "replace", session = session)
+        if (exists(defaultsToken, envir = restoreDefaultsTokens, inherits = FALSE)) {
+          # the user asked for the default settings: do not restore any bookmark
+          rm(list = defaultsToken, envir = restoreDefaultsTokens)
+          logger.debug("[bookmark] Skipped restoring the shiny bookmark b/c default settings were requested")
+          return(invisible(TRUE))
+        }
+        logger.warn("[bookmark] Ignored a request for the default settings with an unknown token")
       }
       if(fs::file_exists(bookmarkRdsTargetPath) && is.null(queryString$`_state_id_`)) {
-        shiny::updateQueryString(queryString = "?_state_id_=latest")
+        shiny::updateQueryString(queryString = "?_state_id_=latest", session = session)
         logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
         session$reload()
       }
@@ -137,7 +147,7 @@ restoreShinyBookmark <- function(session) {
 #' Restore Default Settings
 #'
 #' Deletes the stored settings and reloads the Shiny session without restoring any
-#' bookmark, so that all inputs show the default values defined by the app in
+#' bookmark, so that all inputs show the default values defined by this App in
 #' \code{shinyModuleUserInterface}.
 #'
 #' @param session A Shiny session object, typically provided by the Shiny server function.
@@ -147,7 +157,8 @@ restoreShinyBookmark <- function(session) {
 #' @details
 #' The function deletes the stored settings (\code{input.rds} and \code{input.json}
 #' of the "latest" bookmark) and reloads the session with a marker in the query string.
-#' The marker tells \code{\link{restoreShinyBookmark}} to skip the automatic restore.
+#' The marker carries a one-time random token and tells \code{\link{restoreShinyBookmark}}
+#' to skip the automatic restore.
 #' \code{\link{createMoveAppsShinyServer}} then stores the default settings, which
 #' also replaces the copy of the stored settings on MoveApps.
 #'
@@ -167,8 +178,11 @@ restoreDefaultSettings <- function(session) {
       storedSettings <- c(bookmarkRdsTargetPath, bookmarkJsonTargetPath)
       fs::file_delete(path = storedSettings[fs::file_exists(path = storedSettings)])
       logger.debug("[bookmark] Deleted the stored shiny bookmark")
-      shiny::updateQueryString(queryString = paste0("?", restoreDefaultsQueryParam, "=true"), mode = "replace")
-      logger.debug("[bookmark] Reloading session to restore the default settings of the app")
+      # `tempfile()` creates a random name without changing the random number generator state of this App
+      defaultsToken <- basename(tempfile(pattern = ""))
+      assign(defaultsToken, TRUE, envir = restoreDefaultsTokens)
+      shiny::updateQueryString(queryString = paste0("?", restoreDefaultsQueryParam, "=", defaultsToken), mode = "replace", session = session)
+      logger.debug("[bookmark] Reloading session to restore the default settings of this App")
       session$reload()
     },
     error = function(e) {

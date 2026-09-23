@@ -33,8 +33,9 @@ The function performs the following operations:
 \item Calls the Shiny module (\code{shinyModule}) with data if available
 \item Automatically restores bookmarks from previous sessions on startup
 \item Handles bookmark creation when the bookmark button is clicked and shows the
-warning about not yet stored settings again if the bookmark could not be saved
-\item Deletes the stored settings and reloads the app with its default settings (which are then stored) when the restore-defaults button is clicked
+warning about not yet stored settings again if the bookmark could not be saved or uploaded
+\item Asks for confirmation when the restore-defaults button is clicked, then deletes the stored
+settings and reloads this App with its default settings (which are then stored)
 \item Extracts and saves Shiny input values as JSON for external access
 \item Stores computation results to output file when processing completes
 \item Implements WebSocket heartbeat mechanism for connection stability
@@ -48,8 +49,9 @@ The function implements a dual bookmarking system:
 \item Native Shiny RDS bookmarking for session restoration
 \item Custom JSON bookmarking for external access to input values
 \item Automatic bookmark restoration on application startup
-\item Restoring the app's default settings via \code{\link{restoreDefaultSettings}}
-\item Exclusion of the bookmark and restore-defaults buttons from saved state
+\item Restoring the default settings of this App via \code{\link{restoreDefaultSettings}}
+\item Exclusion of the SDK's buttons and internal inputs (WebSocket heartbeat, JSON
+extraction) from saved state
 }
 }
 
