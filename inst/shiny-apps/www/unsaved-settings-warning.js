@@ -71,6 +71,25 @@ $(function () {
         warning.style.display = (changed || notStored) ? '' : 'none';
     }
 
+    // the server is computing (e.g. a setting created via `renderUI` from the data): this App has not
+    // finished starting, whatever the timers say. Registered first, so that `busy` is up to date for
+    // the other `shiny:idle` handlers
+    let busy = false;
+    let reportWhenIdle = false;
+    $(document).on('shiny:busy', function () {
+        busy = true;
+        clearTimeout(startupTimer);
+    });
+    $(document).on('shiny:idle', function () {
+        busy = false;
+        if (reportWhenIdle) {
+            reportWhenIdle = false;
+            // shiny reports idle before it renders the outputs of that flush (measured: the idle event
+            // comes ~10 ms before `shiny:bound` of a new setting); later activity must not postpone it
+            setTimeout(reportStartupSettings, 500);
+        }
+    });
+
     // the first idle state after connecting: UI (incl. restored bookmark and server-side updates) is settled
     $(document).one('shiny:idle', function () {
         rememberStoredSettings();
@@ -78,11 +97,12 @@ $(function () {
         setTimeout(reportStartupSettings, 15000);
     });
 
-    // this App finished starting once nothing happened for a while (at the latest 15 s after the first idle)
+    // this App finished starting once nothing happened for a while while the server is idle (at the
+    // latest 15 s after the first idle, or at the first idle after that during a long computation)
     let startupTimer = null;
     let startupReported = false;
     function startupActivity() {
-        if (startupReported || storedSettings === null) {
+        if (startupReported || storedSettings === null || busy) {
             return;
         }
         clearTimeout(startupTimer);
@@ -92,6 +112,10 @@ $(function () {
     // those out; a click alone, e.g. on the map, does not stop the check of the others)
     function reportStartupSettings() {
         if (startupReported) {
+            return;
+        }
+        if (busy) {
+            reportWhenIdle = true;
             return;
         }
         startupReported = true;
