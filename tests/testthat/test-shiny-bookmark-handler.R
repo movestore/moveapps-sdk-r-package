@@ -162,6 +162,14 @@ test_that("notApplicableSettings takes a restored upload as applied although shi
   expect_equal(moveapps:::notApplicableSettings(stored, list(upload = upload("other.gpkg", restoredPath)), "upload"), "upload")
 })
 
+test_that("notApplicableSettings takes a stored empty setting as fitting any data", {
+  # stored with nothing selected; shiny's radioButtons() shows its first choice for a restored NULL
+  stored <- list(radio = NULL, checks = NULL, animal = "C")
+  current <- list(radio = "D", checks = NULL, animal = "D")
+
+  expect_equal(moveapps:::notApplicableSettings(stored, current, c("radio", "checks", "animal")), "animal")
+})
+
 test_that("notApplicableSettings reports a restored upload whose file is missing", {
   upload <- function(datapath) data.frame(name = "area.gpkg", size = 17L, type = "application/octet-stream", datapath = datapath)
   stored <- list(upload = upload("0.gpkg"))

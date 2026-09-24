@@ -198,7 +198,9 @@ restoreDefaultSettings <- function(session) {
 #' An upload (\code{fileInput}) is compared without its \code{datapath}: shiny copies a
 #' restored upload to a new temporary path (e.g. \code{0.gpkg} to \code{/tmp/Rtmp.../0.gpkg}).
 #' It only counts as applied if that file exists: shiny's copy fails silently if the bookmark
-#' did not keep the file, and still hands the App the path.
+#' did not keep the file, and still hands the App the path. A setting stored with nothing
+#' selected (\code{NULL}) fits any data: shiny's \code{radioButtons} shows its first choice
+#' for it, which would otherwise count as not applied on every run.
 #'
 #' @param storedInputs Named list of the stored input values (content of \code{input.rds}).
 #' @param currentInputs Named list of the current input values.
@@ -212,8 +214,9 @@ notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
     if (isUpload(value)) value[setdiff(names(value), "datapath")] else value
   }
   applied <- function(stored, current) {
-    isTRUE(all.equal(withoutDatapath(stored), withoutDatapath(current), check.attributes = FALSE)) &&
-      (!isUpload(current) || all(file.exists(current$datapath)))
+    is.null(stored) ||
+      isTRUE(all.equal(withoutDatapath(stored), withoutDatapath(current), check.attributes = FALSE)) &&
+        (!isUpload(current) || all(file.exists(current$datapath)))
   }
 
   ids <- intersect(settingIds, names(storedInputs))
