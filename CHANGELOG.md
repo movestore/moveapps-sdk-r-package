@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - "Restore default settings" (shiny) button next to the "Store settings" button, which (after confirmation) reloads this App with its default settings and stores these, replacing the stored settings (new exported function `restoreDefaultSettings()`)
 - Warning next to the "Store settings" (shiny) button while changed settings are not stored yet, or storing them failed
-- Stored settings which do not fit the current input data (e.g. a track or attribute created via `renderUI` which is not part of the data anymore) are ignored and show their default values, together with the warning about not yet stored settings (new exported function `ignoreNotApplicableSettings()`)
+- Stored settings which do not fit the current input data (e.g. a track or attribute created via `renderUI` which is not part of the data anymore) are ignored and show their default values, together with the warning about not yet stored settings; if the user already changed settings while this App was starting, only the warning is shown (new exported function `ignoreNotApplicableSettings()`)
 
 ### Changed
 - `saveBookmarkAsLatest()` and `notifyPushBookmark()` return (invisibly) whether the bookmark was saved/uploaded
