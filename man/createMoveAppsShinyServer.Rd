@@ -31,8 +31,9 @@ The function performs the following operations:
 \itemize{
 \item Reads input data using \code{\link{readInput}} from the configured source file
 \item Calls the Shiny module (\code{shinyModule}) with data if available
-\item Automatically restores bookmarks from previous sessions on startup and ignores stored
-settings which do not fit the current input data (see \code{\link{ignoreNotApplicableSettings}})
+\item Automatically restores bookmarks from previous sessions on startup and shows the warning
+about not yet stored settings for stored settings which do not fit the current input data
+(see \code{\link{ignoreNotApplicableSettings}})
 \item Handles bookmark creation when the bookmark button is clicked and shows the
 warning about not yet stored settings again if the bookmark could not be saved or uploaded
 \item Asks for confirmation when the restore-defaults button is clicked, then reloads this App
@@ -53,7 +54,7 @@ The function implements a dual bookmarking system:
 \item Custom JSON bookmarking for external access to input values
 \item Automatic bookmark restoration on application startup
 \item Restoring the default settings of this App via \code{\link{restoreDefaultSettings}}
-\item Ignoring stored settings which do not fit the current input data via
+\item Detecting stored settings which do not fit the current input data via
 \code{\link{ignoreNotApplicableSettings}}
 \item Exclusion of the SDK's buttons and internal inputs (WebSocket heartbeat, JSON
 extraction, startup settings) from saved state

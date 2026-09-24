@@ -45,18 +45,6 @@ test_that("saveBookmarkAsLatest moves the bookmark and returns TRUE", {
   expect_false(dir.exists("shiny_bookmarks/abc123"))
 })
 
-test_that("saveBookmarkAsLatest removes the outdated copy of the stored settings without the ones which did not fit", {
-  old <- setwd(newTempDir())
-  on.exit(setwd(old), add = TRUE)
-  dir.create("shiny_bookmarks/latestadjusted", recursive = TRUE)
-  saveRDS(list(setting = "old"), "shiny_bookmarks/latestadjusted/input.rds")
-  dir.create("shiny_bookmarks/abc123", recursive = TRUE)
-  saveRDS(list(setting = "new"), "shiny_bookmarks/abc123/input.rds")
-
-  expect_true(moveapps::saveBookmarkAsLatest("http://localhost:3838/?_state_id_=abc123"))
-  expect_false(dir.exists("shiny_bookmarks/latestadjusted"))
-})
-
 test_that("saveBookmarkAsLatest returns FALSE if the bookmark does not exist", {
   old <- setwd(newTempDir())
   on.exit(setwd(old), add = TRUE)
@@ -183,20 +171,22 @@ test_that("notApplicableSettings reports a restored upload whose file is missing
   expect_equal(moveapps:::notApplicableSettings(stored, restored, "upload"), "upload")
 })
 
-test_that("ignoreNotApplicableSettings reloads with a copy of the stored settings without the ones which do not fit", {
+test_that("ignoreNotApplicableSettings shows the warning and keeps the session when stored settings do not fit", {
   skip_if_not_installed("shiny")
   old <- setwd(newTempDir())
   on.exit(setwd(old), add = TRUE)
   dir.create("shiny_bookmarks/latest", recursive = TRUE)
   stored <- list(animal = "C", speed = 90L, width = 3L)
   saveRDS(stored, "shiny_bookmarks/latest/input.rds")
+  # "C" is not part of the data anymore: shiny shows its first choice instead
   mock <- mockSession("?_state_id_=latest", input = list(animal = "A", speed = 90L, width = 3L))
 
-  expect_true(moveapps::ignoreNotApplicableSettings(mock$session, c("animal", "speed", "width")))
-  expect_identical(readRDS("shiny_bookmarks/latestadjusted/input.rds"), list(speed = 90L, width = 3L))
+  expect_equal(moveapps::ignoreNotApplicableSettings(mock$session, c("animal", "speed", "width")), "animal")
+  # no reload and no copy of the stored settings: they stay untouched until the user stores again
+  expect_equal(mock$calls$reloads, 0)
+  expect_equal(mock$calls$messages, "ma-settings-not-stored")
   expect_identical(readRDS("shiny_bookmarks/latest/input.rds"), stored)
-  expect_equal(mock$calls$queryStrings, "?_state_id_=latestadjusted")
-  expect_equal(mock$calls$reloads, 1)
+  expect_equal(list.files("shiny_bookmarks"), "latest")
 })
 
 test_that("ignoreNotApplicableSettings does nothing if all stored settings fit or none were restored", {
@@ -207,16 +197,13 @@ test_that("ignoreNotApplicableSettings does nothing if all stored settings fit o
   saveRDS(list(animal = "C"), "shiny_bookmarks/latest/input.rds")
 
   allFit <- mockSession("?_state_id_=latest", input = list(animal = "C"))
-  expect_false(moveapps::ignoreNotApplicableSettings(allFit$session, "animal"))
-  expect_equal(allFit$calls$reloads, 0)
+  expect_length(moveapps::ignoreNotApplicableSettings(allFit$session, "animal"), 0)
+  expect_length(allFit$calls$messages, 0)
 
-  # not restored from the stored settings (e.g. default settings, or already reloaded without the ones which do not fit)
-  for (urlSearch in c("", "?_state_id_=latestadjusted")) {
-    notRestored <- mockSession(urlSearch, input = list(animal = "A"))
-    expect_false(moveapps::ignoreNotApplicableSettings(notRestored$session, "animal"))
-    expect_equal(notRestored$calls$reloads, 0)
-  }
-  expect_false(dir.exists("shiny_bookmarks/latestadjusted"))
+  # not restored from the stored settings, e.g. the default settings
+  notRestored <- mockSession("", input = list(animal = "A"))
+  expect_length(moveapps::ignoreNotApplicableSettings(notRestored$session, "animal"), 0)
+  expect_length(notRestored$calls$messages, 0)
 })
 
 test_that("ignoreNotApplicableSettings leaves out the settings the user already changed", {
@@ -228,27 +215,21 @@ test_that("ignoreNotApplicableSettings leaves out the settings the user already 
   # the user picked "A" themselves; the stored speed fits
   mock <- mockSession("?_state_id_=latest", input = list(animal = "A", speed = 90L))
 
-  expect_false(moveapps::ignoreNotApplicableSettings(mock$session, c("animal", "speed"), changedIds = "animal"))
-  expect_equal(mock$calls$reloads, 0)
+  expect_length(moveapps::ignoreNotApplicableSettings(mock$session, c("animal", "speed"), changedIds = "animal"), 0)
   expect_length(mock$calls$messages, 0)
 })
 
-test_that("ignoreNotApplicableSettings warns instead of reloading once the user changed settings", {
+test_that("ignoreNotApplicableSettings still checks the other settings once the user changed some", {
   skip_if_not_installed("shiny")
   old <- setwd(newTempDir())
   on.exit(setwd(old), add = TRUE)
   dir.create("shiny_bookmarks/latest", recursive = TRUE)
-  stored <- list(animal = "C", speed = 90L)
-  saveRDS(stored, "shiny_bookmarks/latest/input.rds")
+  saveRDS(list(animal = "C", speed = 90L), "shiny_bookmarks/latest/input.rds")
   # "C" is not part of the data anymore; the user already changed the speed
   mock <- mockSession("?_state_id_=latest", input = list(animal = "A", speed = 50L))
 
-  expect_false(moveapps::ignoreNotApplicableSettings(mock$session, c("animal", "speed"), changedIds = "speed"))
-  # a reload would discard the changed speed
-  expect_equal(mock$calls$reloads, 0)
+  expect_equal(moveapps::ignoreNotApplicableSettings(mock$session, c("animal", "speed"), changedIds = "speed"), "animal")
   expect_equal(mock$calls$messages, "ma-settings-not-stored")
-  expect_identical(readRDS("shiny_bookmarks/latest/input.rds"), stored)
-  expect_false(dir.exists("shiny_bookmarks/latestadjusted"))
 })
 
 test_that("onStartupFinished leaves out the settings the user changed during the start", {
@@ -307,7 +288,7 @@ test_that("onStartupFinished writes input.json and stores nothing if no default 
   expect_equal(mock$calls$messages, "extract-shiny-input")
 })
 
-test_that("onStartupFinished writes no input.json while reloading without the stored settings which do not fit", {
+test_that("onStartupFinished shows the warning for stored settings which do not fit and writes input.json", {
   skip_if_not_installed("shiny")
   old <- setwd(newTempDir())
   on.exit(setwd(old), add = TRUE)
@@ -318,6 +299,7 @@ test_that("onStartupFinished writes no input.json while reloading without the st
 
   moveapps:::onStartupFinished(mock$session, list(settingIds = list("animal")), defaultsRequested = FALSE, storeSettings = store$fn)
 
-  expect_equal(mock$calls$reloads, 1)
-  expect_length(mock$calls$messages, 0)
+  # `input.json` documents the shown settings, which this App uses
+  expect_equal(mock$calls$reloads, 0)
+  expect_equal(mock$calls$messages, c("ma-settings-not-stored", "extract-shiny-input"))
 })

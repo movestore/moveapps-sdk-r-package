@@ -16,24 +16,21 @@ the browser once this App finished starting).}
 (reported by the browser together with \code{settingIds}).}
 }
 \value{
-Invisibly \code{TRUE} if the session is reloaded without the settings which do not
-fit, otherwise invisibly \code{FALSE}.
+Invisibly, the ids of the stored settings which do not fit the input data (empty if
+all fit, or if the stored settings were not restored).
 }
 \description{
 Checks, after the stored settings were restored, whether each of them could be applied.
-Settings whose stored value is not available anymore (e.g. a track or attribute which is
-not part of the current input data) are removed from a copy of the stored settings, and
-the session is reloaded with this copy. These settings then show the default values of
-this App. The stored settings themselves stay untouched until "Store settings" is clicked.
-Settings the user already changed are left out; once there are any, the session is not
-reloaded (that would discard the changes), only the warning about not yet stored settings
-is shown.
+A setting whose stored value is not available anymore (e.g. a track or attribute which is
+not part of the current input data) keeps what shiny shows instead, e.g. the first choice
+of a \code{selectInput}, or nothing for a multiple selection, radio buttons or a checkbox
+group. The warning about not yet stored settings is shown, and the stored settings stay
+untouched until "Store settings" is clicked. Settings the user already changed are left out.
 }
 \details{
 The check only runs for a session which restored the stored settings (state id "latest").
 A setting counts as not fitting if the value shown differs from the stored value in any
-way, also if only parts of a stored selection are available anymore. The reload uses the
-state id "latestadjusted", so the check does not run again for the reloaded session.
+way, also if only parts of a stored selection are available anymore.
 }
 \examples{
 \dontrun{

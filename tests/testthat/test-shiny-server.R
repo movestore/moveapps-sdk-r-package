@@ -14,12 +14,11 @@ defineShinyModule <- function() {
 }
 
 # mocks the SDK functions around the wiring under test; records what onStartupFinished() receives
-mockServerDependencies <- function(startState, showsIgnored = FALSE, env = parent.frame()) {
+mockServerDependencies <- function(startState, env = parent.frame()) {
   received <- new.env()
   received$defaultsRequested <- logical()
   local_mocked_bindings(
     restoreShinyBookmark = function(session) invisible(startState),
-    showsIgnoredSettings = function(session) showsIgnored,
     onStartupFinished = function(session, startup, defaultsRequested, storeSettings) {
       received$defaultsRequested <- c(received$defaultsRequested, defaultsRequested)
     },
@@ -78,18 +77,5 @@ test_that("createMoveAppsShinyServer keeps the SDK's buttons and internal inputs
   shiny::testServer(moveapps::createMoveAppsShinyServer, {
     internal <- c("ma_bookmark", "ma_restore_defaults", "ma_restore_defaults_confirm", "heartbeat", "shiny_input_json", "ma_startup_settings")
     expect_true(all(internal %in% session$getBookmarkExclude()))
-  }, session = mock$session)
-})
-
-test_that("createMoveAppsShinyServer shows the warning in a session reloaded without the settings which do not fit", {
-  skip_if_not_installed("shiny")
-  defineShinyModule()
-  on.exit(rm("shinyModule", envir = globalenv()), add = TRUE)
-  mockServerDependencies(startState = "none", showsIgnored = TRUE)
-  mock <- recordingSession()
-
-  shiny::testServer(moveapps::createMoveAppsShinyServer, {
-    session$flushReact()
-    expect_true("ma-settings-not-stored" %in% mock$messages$types)
   }, session = mock$session)
 })

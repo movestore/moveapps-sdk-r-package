@@ -200,8 +200,9 @@ createMoveAppsShinyUI <- function(request) {
 #' \itemize{
 #'   \item Reads input data using \code{\link{readInput}} from the configured source file
 #'   \item Calls the Shiny module (\code{shinyModule}) with data if available
-#'   \item Automatically restores bookmarks from previous sessions on startup and ignores stored
-#'     settings which do not fit the current input data (see \code{\link{ignoreNotApplicableSettings}})
+#'   \item Automatically restores bookmarks from previous sessions on startup and shows the warning
+#'     about not yet stored settings for stored settings which do not fit the current input data
+#'     (see \code{\link{ignoreNotApplicableSettings}})
 #'   \item Handles bookmark creation when the bookmark button is clicked and shows the
 #'     warning about not yet stored settings again if the bookmark could not be saved or uploaded
 #'   \item Asks for confirmation when the restore-defaults button is clicked, then reloads this App
@@ -221,7 +222,7 @@ createMoveAppsShinyUI <- function(request) {
 #'   \item Custom JSON bookmarking for external access to input values
 #'   \item Automatic bookmark restoration on application startup
 #'   \item Restoring the default settings of this App via \code{\link{restoreDefaultSettings}}
-#'   \item Ignoring stored settings which do not fit the current input data via
+#'   \item Detecting stored settings which do not fit the current input data via
 #'     \code{\link{ignoreNotApplicableSettings}}
 #'   \item Exclusion of the SDK's buttons and internal inputs (WebSocket heartbeat, JSON
 #'     extraction, startup settings) from saved state
@@ -307,10 +308,6 @@ createMoveAppsShinyServer <- function(input, output, session) {
       {
         startState <- moveapps::restoreShinyBookmark(session)
         defaultsRequested <<- identical(startState, "defaults")
-        if (showsIgnoredSettings(session)) {
-          # some stored settings did not fit the input data and show their defaults: not stored yet
-          session$sendCustomMessage("ma-settings-not-stored", list())
-        }
         # `input.json` documents the settings of this App in the workflow (also if they were never
         # stored): write it right away, and again once this App finished starting (see below).
         # A page which is reloading still shows the settings before the restore, and requested
@@ -325,8 +322,8 @@ createMoveAppsShinyServer <- function(input, output, session) {
     # Need to exclude the buttons and the SDK's internal inputs from being bookmarked
     setBookmarkExclude(c("ma_bookmark", "ma_restore_defaults", "ma_restore_defaults_confirm", "heartbeat", "shiny_input_json", "ma_startup_settings"))
     # Once this App finished starting (reported by `unsaved-settings-warning.js` with the ids of all
-    # settings shown in the UI): store requested default settings, or ignore stored settings which
-    # do not fit the input data
+    # settings shown in the UI): store requested default settings, or show the warning for stored
+    # settings which do not fit the input data
     observeEvent(input$ma_startup_settings, {
       onStartupFinished(session, input$ma_startup_settings, defaultsRequested, storeSettings)
     })

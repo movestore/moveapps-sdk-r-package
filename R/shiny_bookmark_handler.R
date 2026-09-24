@@ -11,10 +11,6 @@ restoreDefaultsQueryParam <- "_ma_defaults_"
 # one-time tokens (as names) of requested reloads with the default settings; a URL with an unknown
 # token (e.g. an old or copied URL) must not replace the stored settings
 restoreDefaultsTokens <- new.env(parent = emptyenv())
-# copy of the stored settings without the ones which do not fit the current input data
-# (shiny only accepts letters and digits in a state id)
-adjustedStateId <- "latestadjusted"
-adjustedStateDir <- fs::path(bookmarkRootDir, adjustedStateId)
 
 ensureBookmarkDirExists <- function() {
   if(!fs::dir_exists(bookmarkDir)){
@@ -42,8 +38,6 @@ ensureBookmarkDirExists <- function() {
 #'   \item Creates the target "latest" bookmark directory if it doesn't exist
 #'   \item Moves the bookmark file from the temporary state directory to the latest location
 #'   \item Removes the temporary state directory to clean up
-#'   \item Removes the copy of the previously stored settings without the ones which did not fit
-#'     the input data (see \code{\link{ignoreNotApplicableSettings}}), as it is outdated now
 #'   \item Logs the operation for debugging purposes
 #' }
 #'
@@ -70,9 +64,6 @@ saveBookmarkAsLatest <- function(url) {
         new_path = bookmarkRdsTargetPath
       )
       fs::dir_delete(fs::path("shiny_bookmarks", stateId))
-      if (fs::dir_exists(adjustedStateDir)) {
-        fs::dir_delete(adjustedStateDir)
-      }
       logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "to", bookmarkDir))
       invisible(TRUE)
     },
@@ -232,13 +223,11 @@ notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
 #' Ignore Stored Settings Which Do Not Fit the Input Data
 #'
 #' Checks, after the stored settings were restored, whether each of them could be applied.
-#' Settings whose stored value is not available anymore (e.g. a track or attribute which is
-#' not part of the current input data) are removed from a copy of the stored settings, and
-#' the session is reloaded with this copy. These settings then show the default values of
-#' this App. The stored settings themselves stay untouched until "Store settings" is clicked.
-#' Settings the user already changed are left out; once there are any, the session is not
-#' reloaded (that would discard the changes), only the warning about not yet stored settings
-#' is shown.
+#' A setting whose stored value is not available anymore (e.g. a track or attribute which is
+#' not part of the current input data) keeps what shiny shows instead, e.g. the first choice
+#' of a \code{selectInput}, or nothing for a multiple selection, radio buttons or a checkbox
+#' group. The warning about not yet stored settings is shown, and the stored settings stay
+#' untouched until "Store settings" is clicked. Settings the user already changed are left out.
 #'
 #' @param session A Shiny session object, typically provided by the Shiny server function.
 #' @param settingIds Character vector of the ids of the settings shown in the UI (reported by
@@ -246,14 +235,13 @@ notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
 #' @param changedIds Character vector of the ids of the settings the user already changed
 #'   (reported by the browser together with \code{settingIds}).
 #'
-#' @return Invisibly \code{TRUE} if the session is reloaded without the settings which do not
-#'   fit, otherwise invisibly \code{FALSE}.
+#' @return Invisibly, the ids of the stored settings which do not fit the input data (empty if
+#'   all fit, or if the stored settings were not restored).
 #'
 #' @details
 #' The check only runs for a session which restored the stored settings (state id "latest").
 #' A setting counts as not fitting if the value shown differs from the stored value in any
-#' way, also if only parts of a stored selection are available anymore. The reload uses the
-#' state id "latestadjusted", so the check does not run again for the reloaded session.
+#' way, also if only parts of a stored selection are available anymore.
 #'
 #' @examples
 #' \dontrun{
@@ -271,42 +259,23 @@ ignoreNotApplicableSettings <- function(session, settingIds, changedIds = charac
     {
       stateId <- shiny::getQueryString(session)$`_state_id_`
       if (!identical(stateId, "latest") || !fs::file_exists(bookmarkRdsTargetPath)) {
-        return(invisible(FALSE))
+        return(invisible(character()))
       }
       storedInputs <- readRDS(bookmarkRdsTargetPath)
       currentInputs <- shiny::isolate(lapply(settingIds, function(id) session$input[[id]]))
       names(currentInputs) <- settingIds
       ids <- notApplicableSettings(storedInputs, currentInputs, setdiff(settingIds, changedIds))
-      if (length(ids) == 0) {
-        return(invisible(FALSE))
-      }
-      if (length(changedIds) > 0) {
-        # a reload would discard the user's changes: only show that the settings are not stored
-        logger.info(paste("[bookmark] Stored settings which do not fit the input data (not reloaded b/c of changed settings):", paste(ids, collapse = ", ")))
+      if (length(ids) > 0) {
+        logger.info(paste("[bookmark] Stored settings which do not fit the input data are ignored:", paste(ids, collapse = ", ")))
         session$sendCustomMessage("ma-settings-not-stored", list())
-        return(invisible(FALSE))
       }
-      fs::dir_create(adjustedStateDir)
-      saveRDS(storedInputs[setdiff(names(storedInputs), ids)], fs::path(adjustedStateDir, bookmarkFileName))
-      logger.info(paste("[bookmark] Stored settings which do not fit the input data are ignored:", paste(ids, collapse = ", ")))
-      shiny::updateQueryString(queryString = paste0("?_state_id_=", adjustedStateId), mode = "replace", session = session)
-      session$reload()
-      invisible(TRUE)
+      invisible(ids)
     },
     error = function(e) {
       logger.error(paste("[bookmark] Could not check whether the stored settings fit the input data:", e))
-      invisible(FALSE)
+      invisible(character())
     }
   )
-}
-
-#' Check for Ignored Stored Settings
-#'
-#' @param session A Shiny session object.
-#' @return \code{TRUE} if the session was reloaded by \code{\link{ignoreNotApplicableSettings}}.
-#' @noRd
-showsIgnoredSettings <- function(session) {
-  identical(shiny::getQueryString(session)$`_state_id_`, adjustedStateId)
 }
 
 #' Finish Starting This App
@@ -333,11 +302,9 @@ onStartupFinished <- function(session, startup, defaultsRequested, storeSettings
     return(invisible())
   }
 
-  reloaded <- ignoreNotApplicableSettings(session, unlist(startup$settingIds), unlist(startup$changedIds))
-  if (!reloaded) {
-    # write `input.json` again: now it also contains the settings created via `renderUI`
-    session$sendCustomMessage("extract-shiny-input", list())
-  }
+  ignoreNotApplicableSettings(session, unlist(startup$settingIds), unlist(startup$changedIds))
+  # write `input.json` again: now it also contains the settings created via `renderUI`
+  session$sendCustomMessage("extract-shiny-input", list())
 }
 
 #' Save Shiny Input as JSON
