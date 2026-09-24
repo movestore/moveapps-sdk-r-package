@@ -205,6 +205,8 @@ restoreDefaultSettings <- function(session) {
 #' Compares the stored value of each setting with the value shown after restoring it.
 #' A difference means that the stored value could not be applied, e.g. because the
 #' choices created via \code{renderUI} from the input data do not contain it anymore.
+#' An upload (\code{fileInput}) is compared without its \code{datapath}: shiny copies a
+#' restored upload to a new temporary path (e.g. \code{0.gpkg} to \code{/tmp/Rtmp.../0.gpkg}).
 #'
 #' @param storedInputs Named list of the stored input values (content of \code{input.rds}).
 #' @param currentInputs Named list of the current input values.
@@ -213,9 +215,13 @@ restoreDefaultSettings <- function(session) {
 #' @return Character vector of the ids of the settings whose stored value was not applied.
 #' @noRd
 notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
+  withoutDatapath <- function(value) {
+    if (is.data.frame(value)) value[setdiff(names(value), "datapath")] else value
+  }
+
   ids <- intersect(settingIds, names(storedInputs))
   Filter(function(id) {
-    !isTRUE(all.equal(storedInputs[[id]], currentInputs[[id]], check.attributes = FALSE))
+    !isTRUE(all.equal(withoutDatapath(storedInputs[[id]]), withoutDatapath(currentInputs[[id]]), check.attributes = FALSE))
   }, ids)
 }
 

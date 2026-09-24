@@ -153,6 +153,17 @@ test_that("notApplicableSettings finds the stored settings which were not applie
   expect_length(moveapps:::notApplicableSettings(stored, stored, settingIds), 0)
 })
 
+test_that("notApplicableSettings takes a restored upload as applied although shiny moved it to a temporary path", {
+  upload <- function(name, datapath) data.frame(name = name, size = 17L, type = "application/octet-stream", datapath = datapath)
+  stored <- list(upload = upload("area.gpkg", "0.gpkg"))
+  # shiny copies a restored upload into a new temporary dir and hands the app that path
+  restored <- list(upload = upload("area.gpkg", "/tmp/RtmpAbc123/1b6c00853f78/0.gpkg"))
+
+  expect_length(moveapps:::notApplicableSettings(stored, restored, "upload"), 0)
+  # control: uploads are still compared, a different file does not fit
+  expect_equal(moveapps:::notApplicableSettings(stored, list(upload = upload("other.gpkg", "/tmp/RtmpAbc123/1b6c00853f78/0.gpkg")), "upload"), "upload")
+})
+
 test_that("ignoreNotApplicableSettings reloads with a copy of the stored settings without the ones which do not fit", {
   skip_if_not_installed("shiny")
   old <- setwd(newTempDir())
