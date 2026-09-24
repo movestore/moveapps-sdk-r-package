@@ -148,13 +148,9 @@ $(function () {
         notStored = false;
         updateWarning();
     });
-    // storing failed: show the warning again (until storing succeeds)
-    Shiny.addCustomMessageHandler('ma-settings-store-failed', function (message) {
-        notStored = true;
-        updateWarning();
-    });
-    // stored settings which do not fit the input data were ignored and show their defaults
-    Shiny.addCustomMessageHandler('ma-settings-not-applicable', function (message) {
+    // the shown settings differ from the stored ones (storing failed, or stored settings which do not
+    // fit the input data were ignored): show the warning until storing succeeds
+    Shiny.addCustomMessageHandler('ma-settings-not-stored', function (message) {
         notStored = true;
         updateWarning();
     });

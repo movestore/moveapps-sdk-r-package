@@ -284,7 +284,7 @@ createMoveAppsShinyServer <- function(input, output, session) {
     } else {
       logger.error("[bookmark] Could not store the settings")
       # shows the warning about not yet stored settings (again)
-      session$sendCustomMessage("ma-settings-store-failed", list())
+      session$sendCustomMessage("ma-settings-not-stored", list())
     }
     settingsStored
   }
@@ -309,7 +309,7 @@ createMoveAppsShinyServer <- function(input, output, session) {
         }
         if (showsIgnoredSettings(session)) {
           # some stored settings did not fit the input data and show their defaults: not stored yet
-          session$sendCustomMessage("ma-settings-not-applicable", list())
+          session$sendCustomMessage("ma-settings-not-stored", list())
         }
         # `input.json` documents the settings of this App in the workflow (also if they were never
         # stored): write it right away, and again once this App finished starting (see below).
