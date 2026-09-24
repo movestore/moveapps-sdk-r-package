@@ -35,8 +35,8 @@ The function performs the following operations:
 settings which do not fit the current input data (see \code{\link{ignoreNotApplicableSettings}})
 \item Handles bookmark creation when the bookmark button is clicked and shows the
 warning about not yet stored settings again if the bookmark could not be saved or uploaded
-\item Asks for confirmation when the restore-defaults button is clicked, then deletes the stored
-settings and reloads this App with its default settings (which are then stored)
+\item Asks for confirmation when the restore-defaults button is clicked, then reloads this App
+with its default settings, which then replace the stored settings
 \item Extracts and saves Shiny input values as JSON (documenting the settings of this App in
 the workflow) at the start, again once this App finished starting, and whenever the settings
 are stored

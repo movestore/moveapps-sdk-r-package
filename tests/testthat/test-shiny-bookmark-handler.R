@@ -61,7 +61,7 @@ test_that("notifyPushBookmark returns TRUE if uploading is faked", {
   expect_true(moveapps::notifyPushBookmark("input.rds"))
 })
 
-test_that("restoreDefaultSettings deletes the stored settings and reloads with a one-time token", {
+test_that("restoreDefaultSettings reloads with a one-time token and keeps the stored settings until the defaults are stored", {
   skip_if_not_installed("shiny")
   old <- setwd(newTempDir())
   on.exit(setwd(old), add = TRUE)
@@ -70,8 +70,9 @@ test_that("restoreDefaultSettings deletes the stored settings and reloads with a
 
   moveapps::restoreDefaultSettings(mock$session)
 
-  expect_false(file.exists("shiny_bookmarks/latest/input.rds"))
-  expect_false(file.exists("shiny_bookmarks/latest/input.json"))
+  # MoveApps keeps its copy until the defaults are stored: deleting the local one would get out of sync
+  expect_true(file.exists("shiny_bookmarks/latest/input.rds"))
+  expect_true(file.exists("shiny_bookmarks/latest/input.json"))
   expect_equal(mock$calls$reloads, 1)
   expect_length(mock$calls$queryStrings, 1)
   expect_match(mock$calls$queryStrings, "^\\?_ma_defaults_=.+")
@@ -95,8 +96,6 @@ test_that("restoreShinyBookmark skips the restore once for a requested reload wi
   storeFakeBookmark()
   request <- mockSession()
   moveapps::restoreDefaultSettings(request$session)
-  # the default settings are stored again after the reload
-  storeFakeBookmark()
 
   reloaded <- mockSession(request$calls$queryStrings)
   expect_equal(moveapps::restoreShinyBookmark(reloaded$session), "defaults")

@@ -157,21 +157,21 @@ restoreShinyBookmark <- function(session) {
 
 #' Restore Default Settings
 #'
-#' Deletes the stored settings and reloads the Shiny session without restoring any
-#' bookmark, so that all inputs show the default values defined by this App in
-#' \code{shinyModuleUserInterface}.
+#' Reloads the Shiny session without restoring any bookmark, so that all inputs show the
+#' default values defined by this App in \code{shinyModuleUserInterface}. These default
+#' settings then replace the stored settings.
 #'
 #' @param session A Shiny session object, typically provided by the Shiny server function.
 #'
-#' @return No return value, called for side effects (file deletion, session reload and logging).
+#' @return No return value, called for side effects (session reload and logging).
 #'
 #' @details
-#' The function deletes the stored settings (\code{input.rds} and \code{input.json}
-#' of the "latest" bookmark) and reloads the session with a marker in the query string.
-#' The marker carries a one-time random token and tells \code{\link{restoreShinyBookmark}}
-#' to skip the automatic restore.
-#' \code{\link{createMoveAppsShinyServer}} then stores the default settings, which
-#' also replaces the copy of the stored settings on MoveApps.
+#' The function reloads the session with a marker in the query string. The marker
+#' carries a one-time random token and tells \code{\link{restoreShinyBookmark}} to skip
+#' the automatic restore. \code{\link{createMoveAppsShinyServer}} then stores the default
+#' settings, which replaces the stored settings (\code{input.rds} and \code{input.json}
+#' of the "latest" bookmark), also on MoveApps. The stored settings are not deleted
+#' beforehand: if storing the defaults fails, they stay in sync with the copy on MoveApps.
 #'
 #' @examples
 #' \dontrun{
@@ -186,9 +186,6 @@ restoreShinyBookmark <- function(session) {
 restoreDefaultSettings <- function(session) {
   tryCatch(
     {
-      storedSettings <- c(bookmarkRdsTargetPath, bookmarkJsonTargetPath)
-      fs::file_delete(path = storedSettings[fs::file_exists(path = storedSettings)])
-      logger.debug("[bookmark] Deleted the stored shiny bookmark")
       # `tempfile()` creates a random name without changing the random number generator state of this App
       defaultsToken <- basename(tempfile(pattern = ""))
       assign(defaultsToken, TRUE, envir = restoreDefaultsTokens)
