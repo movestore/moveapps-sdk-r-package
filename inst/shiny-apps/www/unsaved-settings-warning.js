@@ -88,16 +88,18 @@ $(function () {
         clearTimeout(startupTimer);
         startupTimer = setTimeout(reportStartupSettings, 1500);
     }
-    // report the ids of all settings shown, and whether the user already started changing settings
+    // report the ids of all settings shown, and of the ones the user already changed (the server leaves
+    // those out; a click alone, e.g. on the map, does not stop the check of the others)
     function reportStartupSettings() {
         if (startupReported) {
             return;
         }
         startupReported = true;
         clearTimeout(startupTimer);
+        updateWarning();
         Shiny.setInputValue('ma_startup_settings', {
             settingIds: Object.keys(currentSettings()),
-            userInteracted: userInteracted
+            changedIds: Array.from(changedIds)
         }, {priority: 'event'});
     }
     $(document).on('shiny:idle shiny:bound', startupActivity);

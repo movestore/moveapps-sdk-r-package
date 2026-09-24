@@ -208,6 +208,54 @@ test_that("ignoreNotApplicableSettings does nothing if all stored settings fit o
   expect_false(dir.exists("shiny_bookmarks/latestadjusted"))
 })
 
+test_that("ignoreNotApplicableSettings leaves out the settings the user already changed", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  saveRDS(list(animal = "C", speed = 90L), "shiny_bookmarks/latest/input.rds")
+  # the user picked "A" themselves; the stored speed fits
+  mock <- mockSession("?_state_id_=latest", input = list(animal = "A", speed = 90L))
+
+  expect_false(moveapps::ignoreNotApplicableSettings(mock$session, c("animal", "speed"), changedIds = "animal"))
+  expect_equal(mock$calls$reloads, 0)
+  expect_length(mock$calls$messages, 0)
+})
+
+test_that("ignoreNotApplicableSettings warns instead of reloading once the user changed settings", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  stored <- list(animal = "C", speed = 90L)
+  saveRDS(stored, "shiny_bookmarks/latest/input.rds")
+  # "C" is not part of the data anymore; the user already changed the speed
+  mock <- mockSession("?_state_id_=latest", input = list(animal = "A", speed = 50L))
+
+  expect_false(moveapps::ignoreNotApplicableSettings(mock$session, c("animal", "speed"), changedIds = "speed"))
+  # a reload would discard the changed speed
+  expect_equal(mock$calls$reloads, 0)
+  expect_equal(mock$calls$messages, "ma-settings-not-stored")
+  expect_identical(readRDS("shiny_bookmarks/latest/input.rds"), stored)
+  expect_false(dir.exists("shiny_bookmarks/latestadjusted"))
+})
+
+test_that("onStartupFinished leaves out the settings the user changed during the start", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  saveRDS(list(animal = "C"), "shiny_bookmarks/latest/input.rds")
+  mock <- mockSession("?_state_id_=latest", input = list(animal = "A"))
+  store <- fakeStoreSettings(succeeds = TRUE)
+
+  startup <- list(settingIds = list("animal"), changedIds = list("animal"))
+  moveapps:::onStartupFinished(mock$session, startup, defaultsRequested = FALSE, storeSettings = store$fn)
+
+  expect_equal(mock$calls$reloads, 0)
+  expect_equal(mock$calls$messages, "extract-shiny-input")
+})
+
 test_that("onStartupFinished stores the requested default settings once this App finished starting", {
   skip_if_not_installed("shiny")
   old <- setwd(newTempDir())

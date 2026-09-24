@@ -4,13 +4,16 @@
 \alias{ignoreNotApplicableSettings}
 \title{Ignore Stored Settings Which Do Not Fit the Input Data}
 \usage{
-ignoreNotApplicableSettings(session, settingIds)
+ignoreNotApplicableSettings(session, settingIds, changedIds = character())
 }
 \arguments{
 \item{session}{A Shiny session object, typically provided by the Shiny server function.}
 
 \item{settingIds}{Character vector of the ids of the settings shown in the UI (reported by
 the browser once this App finished starting).}
+
+\item{changedIds}{Character vector of the ids of the settings the user already changed
+(reported by the browser together with \code{settingIds}).}
 }
 \value{
 Invisibly \code{TRUE} if the session is reloaded without the settings which do not
@@ -22,6 +25,9 @@ Settings whose stored value is not available anymore (e.g. a track or attribute 
 not part of the current input data) are removed from a copy of the stored settings, and
 the session is reloaded with this copy. These settings then show the default values of
 this App. The stored settings themselves stay untouched until "Store settings" is clicked.
+Settings the user already changed are left out; once there are any, the session is not
+reloaded (that would discard the changes), only the warning about not yet stored settings
+is shown.
 }
 \details{
 The check only runs for a session which restored the stored settings (state id "latest").
@@ -33,7 +39,8 @@ state id "latestadjusted", so the check does not run again for the reloaded sess
 \dontrun{
 # In a Shiny server function
 observeEvent(input$ma_startup_settings, {
-  ignoreNotApplicableSettings(session, unlist(input$ma_startup_settings$settingIds))
+  startup <- input$ma_startup_settings
+  ignoreNotApplicableSettings(session, unlist(startup$settingIds), unlist(startup$changedIds))
 })
 }
 
