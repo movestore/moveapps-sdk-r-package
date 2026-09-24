@@ -10,7 +10,8 @@ notifyPushBookmark(fileName)
 \item{fileName}{Character string specifying the name of the bookmark file}
 }
 \value{
-No return value. Called for its side effect of uploading the bookmark.
+Invisibly \code{TRUE} if the bookmark was uploaded (or uploading is faked),
+otherwise invisibly \code{FALSE}. Called mainly for its side effect of uploading the bookmark.
 }
 \description{
 Notifies the pilot service to push a Shiny bookmark file. This function is used

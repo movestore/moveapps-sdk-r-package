@@ -103,8 +103,10 @@ runMoveAppsApp <- function() {
 #' \itemize{
 #'   \item WebSocket keep-alive JavaScript fix and associated CSS for connection stability
 #'   \item Custom JavaScript for extracting Shiny input values to JSON format
+#'   \item Custom JavaScript showing a warning while changed settings are not stored yet
 #'   \item The main Shiny module user interface via \code{shinyModuleUserInterface}
 #'   \item WebSocket heartbeat text output for maintaining connection during long operations
+#'   \item A button for restoring the default settings of this App (after confirmation)
 #'   \item A bookmark button for saving application settings with custom styling
 #' }
 #'
@@ -124,6 +126,7 @@ runMoveAppsApp <- function() {
 #'   \item \code{ws-keep-alive-fix.js}: JavaScript for WebSocket connection maintenance
 #'   \item \code{ws-keep-alive-fix.css}: CSS styles for WebSocket fix components
 #'   \item \code{extract-inputs.js}: JavaScript for extracting input values to JSON
+#'   \item \code{unsaved-settings-warning.js}: JavaScript for the warning about not yet stored settings
 #' }
 #'
 #' @seealso
@@ -156,14 +159,18 @@ createMoveAppsShinyUI <- function(request) {
     includeScript(system.file("shiny-apps/www/ws-keep-alive-fix.js", package = "moveapps")),
     includeCSS(system.file("shiny-apps/www/ws-keep-alive-fix.css", package = "moveapps")),
     includeScript(system.file("shiny-apps/www/extract-inputs.js", package = "moveapps")),
+    includeScript(system.file("shiny-apps/www/unsaved-settings-warning.js", package = "moveapps")),
     
     # ws-heartbeat fix
     # kudos: https://github.com/rstudio/shiny/issues/2110#issuecomment-419971302
     textOutput("ws_heartbeat"),
     
-    # store the current state (as a shiny bookmark)
+    # store the current state (as a shiny bookmark) or restore the default settings of this App
     tags$div(
-      style = "display: flex; justify-content: flex-end;",
+      style = "display: flex; justify-content: flex-end; gap: 0.5em;",
+      # shown by `unsaved-settings-warning.js` while the settings differ from the stored ones
+      tags$span(id = "ma_unsaved_settings", role = "status", style = "display: none; align-self: center; font-weight: bold; color: #ff8c00;", shiny::icon(name = "triangle-exclamation"), "Changed settings are not stored yet. Click 'Store settings' to keep them for future runs of the workflow."),
+      shiny::actionButton(inputId = 'ma_restore_defaults', label = "Restore default settings", title = "Click here to delete the stored settings and reset all settings to the default values of this App", class = "btn btn-outline-secondary", style = "margin: 0;"),
       bookmarkButton(id = 'ma_bookmark', label="Store settings", title="Click here to store the current chosen settings for future runs of the workflow",class="btn btn-outline-success", style = "margin: 0;")
     ),
     
@@ -193,9 +200,16 @@ createMoveAppsShinyUI <- function(request) {
 #' \itemize{
 #'   \item Reads input data using \code{\link{readInput}} from the configured source file
 #'   \item Calls the Shiny module (\code{shinyModule}) with data if available
-#'   \item Automatically restores bookmarks from previous sessions on startup
-#'   \item Handles bookmark creation when the bookmark button is clicked
-#'   \item Extracts and saves Shiny input values as JSON for external access
+#'   \item Automatically restores bookmarks from previous sessions on startup and shows the warning
+#'     about not yet stored settings for stored settings which do not fit the current input data
+#'     (see \code{\link{ignoreNotApplicableSettings}})
+#'   \item Handles bookmark creation when the bookmark button is clicked and shows the
+#'     warning about not yet stored settings again if the bookmark could not be saved or uploaded
+#'   \item Asks for confirmation when the restore-defaults button is clicked, then reloads this App
+#'     with its default settings, which then replace the stored settings
+#'   \item Extracts and saves Shiny input values as JSON (documenting the settings of this App in
+#'     the workflow) at the start, again once this App finished starting, and whenever the settings
+#'     are stored
 #'   \item Stores computation results to output file when processing completes
 #'   \item Implements WebSocket heartbeat mechanism for connection stability
 #'   \item Provides comprehensive error handling with logging and appropriate app termination
@@ -207,7 +221,11 @@ createMoveAppsShinyUI <- function(request) {
 #'   \item Native Shiny RDS bookmarking for session restoration
 #'   \item Custom JSON bookmarking for external access to input values
 #'   \item Automatic bookmark restoration on application startup
-#'   \item Exclusion of the bookmark button itself from saved state
+#'   \item Restoring the default settings of this App via \code{\link{restoreDefaultSettings}}
+#'   \item Detecting stored settings which do not fit the current input data via
+#'     \code{\link{ignoreNotApplicableSettings}}
+#'   \item Exclusion of the SDK's buttons and internal inputs (WebSocket heartbeat, JSON
+#'     extraction, startup settings) from saved state
 #' }
 #'
 #' @section Error Handling:
@@ -228,7 +246,7 @@ createMoveAppsShinyUI <- function(request) {
 #' \code{\link{createMoveAppsShinyUI}} for the corresponding UI function,
 #' \code{\link{readInput}} for data input,
 #' \code{\link{storeResult}} for result storage,
-#' \code{\link{restoreShinyBookmark}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
+#' \code{\link{restoreShinyBookmark}}, \code{\link{restoreDefaultSettings}}, \code{\link{ignoreNotApplicableSettings}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
 #' \code{\link{storeToFile}} for error logging,
 #' \code{\link{notifyDone}}, \code{\link{notifyPushBookmark}} for external notifications
 #'
@@ -254,6 +272,24 @@ createMoveAppsShinyUI <- function(request) {
 #'
 #' @export
 createMoveAppsShinyServer <- function(input, output, session) {
+  # set in `onBookmarked()` once the settings are saved and uploaded
+  settingsStored <- FALSE
+  # store the current settings (as a shiny bookmark and as JSON); returns whether this succeeded
+  storeSettings <- function() {
+    settingsStored <<- FALSE
+    # call the (native shiny) RDS bookmarking; errors are caught (and shown as a notification) by shiny itself
+    session$doBookmark()
+    if (settingsStored) {
+      # call the (custom MoveApps) JSON bookmarking
+      session$sendCustomMessage("extract-shiny-input", list())
+    } else {
+      logger.error("[bookmark] Could not store the settings")
+      # shows the warning about not yet stored settings (again)
+      session$sendCustomMessage("ma-settings-not-stored", list())
+    }
+    settingsStored
+  }
+
   tryCatch(
   {
     data <- moveapps::readInput(moveapps::sourceFile())
@@ -264,24 +300,53 @@ createMoveAppsShinyServer <- function(input, output, session) {
 
     result <- do.call(callModule, shinyModuleArgs)
 
+    # set at the start if the user asked for the default settings; they are stored once this App
+    # finished starting (see below)
+    defaultsRequested <- FALSE
     observeEvent(
       session,
       {
-        moveapps::restoreShinyBookmark(session)
-        # Trigger extractShinyInput after restoring the bookmark
-        session$sendCustomMessage("extract-shiny-input", list())
+        startState <- moveapps::restoreShinyBookmark(session)
+        defaultsRequested <<- identical(startState, "defaults")
+        # `input.json` documents the settings of this App in the workflow (also if they were never
+        # stored): write it right away, and again once this App finished starting (see below).
+        # A page which is reloading still shows the settings before the restore, and requested
+        # default settings are documented once they are stored: nothing to document yet
+        if (identical(startState, "none")) {
+          session$sendCustomMessage("extract-shiny-input", list())
+        }
       },
       once = TRUE
     )
 
-    # Need to exclude the button itself from being bookmarked
-    setBookmarkExclude(c("ma_bookmark"))
+    # Need to exclude the buttons and the SDK's internal inputs from being bookmarked
+    setBookmarkExclude(c("ma_bookmark", "ma_restore_defaults", "ma_restore_defaults_confirm", "heartbeat", "shiny_input_json", "ma_startup_settings"))
+    # Once this App finished starting (reported by `unsaved-settings-warning.js` with the ids of all
+    # settings shown in the UI): store requested default settings, or show the warning for stored
+    # settings which do not fit the input data
+    observeEvent(input$ma_startup_settings, {
+      onStartupFinished(session, input$ma_startup_settings, defaultsRequested, storeSettings)
+    })
+    # Ask for confirmation before deleting the stored settings
+    observeEvent(input$ma_restore_defaults, {
+      shiny::showModal(shiny::modalDialog(
+        title = "Restore default settings?",
+        "All settings are reset to the default values of this App. Your stored settings are deleted and can't be recovered.",
+        footer = shiny::tagList(
+          shiny::modalButton(label = "Cancel"),
+          shiny::actionButton(inputId = "ma_restore_defaults_confirm", label = "Restore defaults", class = "btn btn-danger")
+        ),
+        easyClose = TRUE
+      ))
+    })
+    # Reload the UI with the default values of this App, which then replace the stored settings
+    observeEvent(input$ma_restore_defaults_confirm, {
+      shiny::removeModal()
+      moveapps::restoreDefaultSettings(session)
+    })
     # Trigger bookmarking with button (needed b/c of custom bookmark button ID)
     observeEvent(input$ma_bookmark, {
-      # call the (native shiny) RDS bookmarking
-      session$doBookmark()
-      # call the (custom MoveApps) JSON bookmarking
-      session$sendCustomMessage("extract-shiny-input", list())
+      storeSettings()
     })
     # listen to the custom shiny input extraction and store it as JSON
     observeEvent(input$shiny_input_json, {
@@ -315,7 +380,13 @@ createMoveAppsShinyServer <- function(input, output, session) {
   # hook after persisting the bookmark
   # see https://shiny.rstudio.com/articles/advanced-bookmarking.html
   onBookmarked(function(url) {
-    moveapps::saveBookmarkAsLatest(url)
-    moveapps::notifyPushBookmark("input.rds")
+    # only upload a successfully saved bookmark; failures are reported by `storeSettings()`
+    if (moveapps::saveBookmarkAsLatest(url) && moveapps::notifyPushBookmark("input.rds")) {
+      settingsStored <<- TRUE
+      # a reload (e.g. F5) of this page restores the settings just stored
+      shiny::updateQueryString(queryString = "?_state_id_=latest", mode = "replace", session = session)
+      # hides the warning about not yet stored settings
+      session$sendCustomMessage("ma-settings-stored", list())
+    }
   })
 }

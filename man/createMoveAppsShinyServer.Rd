@@ -31,9 +31,16 @@ The function performs the following operations:
 \itemize{
 \item Reads input data using \code{\link{readInput}} from the configured source file
 \item Calls the Shiny module (\code{shinyModule}) with data if available
-\item Automatically restores bookmarks from previous sessions on startup
-\item Handles bookmark creation when the bookmark button is clicked
-\item Extracts and saves Shiny input values as JSON for external access
+\item Automatically restores bookmarks from previous sessions on startup and shows the warning
+about not yet stored settings for stored settings which do not fit the current input data
+(see \code{\link{ignoreNotApplicableSettings}})
+\item Handles bookmark creation when the bookmark button is clicked and shows the
+warning about not yet stored settings again if the bookmark could not be saved or uploaded
+\item Asks for confirmation when the restore-defaults button is clicked, then reloads this App
+with its default settings, which then replace the stored settings
+\item Extracts and saves Shiny input values as JSON (documenting the settings of this App in
+the workflow) at the start, again once this App finished starting, and whenever the settings
+are stored
 \item Stores computation results to output file when processing completes
 \item Implements WebSocket heartbeat mechanism for connection stability
 \item Provides comprehensive error handling with logging and appropriate app termination
@@ -46,7 +53,11 @@ The function implements a dual bookmarking system:
 \item Native Shiny RDS bookmarking for session restoration
 \item Custom JSON bookmarking for external access to input values
 \item Automatic bookmark restoration on application startup
-\item Exclusion of the bookmark button itself from saved state
+\item Restoring the default settings of this App via \code{\link{restoreDefaultSettings}}
+\item Detecting stored settings which do not fit the current input data via
+\code{\link{ignoreNotApplicableSettings}}
+\item Exclusion of the SDK's buttons and internal inputs (WebSocket heartbeat, JSON
+extraction, startup settings) from saved state
 }
 }
 
@@ -93,7 +104,7 @@ shinyApp(ui = ui, server = server, enableBookmarking = "server")
 \code{\link{createMoveAppsShinyUI}} for the corresponding UI function,
 \code{\link{readInput}} for data input,
 \code{\link{storeResult}} for result storage,
-\code{\link{restoreShinyBookmark}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
+\code{\link{restoreShinyBookmark}}, \code{\link{restoreDefaultSettings}}, \code{\link{ignoreNotApplicableSettings}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
 \code{\link{storeToFile}} for error logging,
 \code{\link{notifyDone}}, \code{\link{notifyPushBookmark}} for external notifications
 }

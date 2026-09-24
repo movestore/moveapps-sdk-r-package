@@ -11,7 +11,8 @@ saveBookmarkAsLatest(url)
 Expected to contain a \verb{_state_id_} query parameter.}
 }
 \value{
-No return value, called for side effects (file operations and logging).
+Invisibly \code{TRUE} if the bookmark was saved, otherwise invisibly
+\code{FALSE}. Called mainly for side effects (file operations and logging).
 }
 \description{
 Moves a Shiny bookmark from its temporary location to a persistent "latest" location.

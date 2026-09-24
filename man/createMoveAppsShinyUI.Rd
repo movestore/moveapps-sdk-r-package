@@ -27,8 +27,10 @@ The function creates a UI that includes the following components:
 \itemize{
 \item WebSocket keep-alive JavaScript fix and associated CSS for connection stability
 \item Custom JavaScript for extracting Shiny input values to JSON format
+\item Custom JavaScript showing a warning while changed settings are not stored yet
 \item The main Shiny module user interface via \code{shinyModuleUserInterface}
 \item WebSocket heartbeat text output for maintaining connection during long operations
+\item A button for restoring the default settings of this App (after confirmation)
 \item A bookmark button for saving application settings with custom styling
 }
 
@@ -51,6 +53,7 @@ The function loads the following bundled resources:
 \item \code{ws-keep-alive-fix.js}: JavaScript for WebSocket connection maintenance
 \item \code{ws-keep-alive-fix.css}: CSS styles for WebSocket fix components
 \item \code{extract-inputs.js}: JavaScript for extracting input values to JSON
+\item \code{unsaved-settings-warning.js}: JavaScript for the warning about not yet stored settings
 }
 }
 

@@ -66,7 +66,8 @@ notifyDone <- function(executionType) {
 #' to save and restore Shiny application state.
 #'
 #' @param fileName Character string specifying the name of the bookmark file
-#' @return No return value. Called for its side effect of uploading the bookmark.
+#' @return Invisibly \code{TRUE} if the bookmark was uploaded (or uploading is faked),
+#'   otherwise invisibly \code{FALSE}. Called mainly for its side effect of uploading the bookmark.
 #' @details
 #' If the HTTP_CLIENT_FAKE environment variable is set to "yes", the function
 #' returns early without sending any notification (useful for testing).
@@ -78,7 +79,7 @@ notifyDone <- function(executionType) {
 #' }
 notifyPushBookmark <- function(fileName) {
   if (Sys.getenv(x = "HTTP_CLIENT_FAKE", "no") == "yes") {
-    return()
+    return(invisible(TRUE))
   }
   logger.debug(paste("Notify pilot to push bookmark", fileName))
 
@@ -94,8 +95,10 @@ notifyPushBookmark <- function(fileName) {
 
   if (parsedResponse["success"] == TRUE) {
       logger.debug("Uploaded shiny-bookmark")
+      return(invisible(TRUE))
     } else {
       logger.info("Couldn't upload shiny-bookmark")
+      return(invisible(FALSE))
     }
 }
 
