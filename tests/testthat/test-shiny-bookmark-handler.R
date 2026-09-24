@@ -1,15 +1,24 @@
-# minimal stand-in for a shiny session, recording query string updates and reloads
+# minimal stand-in for a shiny session, recording query string updates, reloads and custom messages
 mockSession <- function(urlSearch = "", input = list()) {
   calls <- new.env()
   calls$queryStrings <- character()
   calls$reloads <- 0
+  calls$messages <- character()
   session <- list(
     clientData = list(url_search = urlSearch),
     input = input,
     updateQueryString = function(queryString, mode) calls$queryStrings <- c(calls$queryStrings, queryString),
-    reload = function() calls$reloads <- calls$reloads + 1
+    reload = function() calls$reloads <- calls$reloads + 1,
+    sendCustomMessage = function(type, message) calls$messages <- c(calls$messages, type)
   )
   list(session = session, calls = calls)
+}
+
+# stand-in for storing the settings (bookmark and upload), counting its calls
+fakeStoreSettings <- function(succeeds) {
+  calls <- new.env()
+  calls$count <- 0
+  list(fn = function() { calls$count <- calls$count + 1; succeeds }, calls = calls)
 }
 
 # empty temporary directory to run the bookmark functions (which use relative paths) in
@@ -197,4 +206,59 @@ test_that("ignoreNotApplicableSettings does nothing if all stored settings fit o
     expect_equal(notRestored$calls$reloads, 0)
   }
   expect_false(dir.exists("shiny_bookmarks/latestadjusted"))
+})
+
+test_that("onStartupFinished stores the requested default settings once this App finished starting", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  mock <- mockSession()
+  store <- fakeStoreSettings(succeeds = TRUE)
+
+  moveapps:::onStartupFinished(mock$session, list(settingIds = list("animal")), defaultsRequested = TRUE, storeSettings = store$fn)
+
+  expect_equal(store$calls$count, 1)
+  # a successful store writes `input.json` itself
+  expect_length(mock$calls$messages, 0)
+})
+
+test_that("onStartupFinished writes input.json although storing the default settings failed", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  mock <- mockSession()
+  store <- fakeStoreSettings(succeeds = FALSE)
+
+  moveapps:::onStartupFinished(mock$session, list(settingIds = list("animal")), defaultsRequested = TRUE, storeSettings = store$fn)
+
+  expect_equal(store$calls$count, 1)
+  expect_equal(mock$calls$messages, "extract-shiny-input")
+})
+
+test_that("onStartupFinished writes input.json and stores nothing if no default settings were requested", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  mock <- mockSession()
+  store <- fakeStoreSettings(succeeds = TRUE)
+
+  moveapps:::onStartupFinished(mock$session, list(settingIds = list("animal")), defaultsRequested = FALSE, storeSettings = store$fn)
+
+  expect_equal(store$calls$count, 0)
+  expect_equal(mock$calls$messages, "extract-shiny-input")
+})
+
+test_that("onStartupFinished writes no input.json while reloading without the stored settings which do not fit", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  saveRDS(list(animal = "C"), "shiny_bookmarks/latest/input.rds")
+  mock <- mockSession("?_state_id_=latest", input = list(animal = "A"))
+  store <- fakeStoreSettings(succeeds = TRUE)
+
+  moveapps:::onStartupFinished(mock$session, list(settingIds = list("animal")), defaultsRequested = FALSE, storeSettings = store$fn)
+
+  expect_equal(mock$calls$reloads, 1)
+  expect_length(mock$calls$messages, 0)
 })

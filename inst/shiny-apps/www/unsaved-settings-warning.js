@@ -143,10 +143,15 @@ $(function () {
         notStored = false;
         rememberStoredSettings();
     });
-    // the server confirms that the settings were stored (and uploaded)
+    // the server confirms that the settings were stored (and uploaded); they are the shown ones, also
+    // if the server stored them itself (the default settings, once this App finished starting)
     Shiny.addCustomMessageHandler('ma-settings-stored', function (message) {
         notStored = false;
-        updateWarning();
+        if (storedSettings !== null) {
+            rememberStoredSettings();
+        } else {
+            updateWarning();
+        }
     });
     // the shown settings differ from the stored ones (storing failed, or stored settings which do not
     // fit the input data were ignored): show the warning until storing succeeds

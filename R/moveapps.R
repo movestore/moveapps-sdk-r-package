@@ -299,22 +299,23 @@ createMoveAppsShinyServer <- function(input, output, session) {
 
     result <- do.call(callModule, shinyModuleArgs)
 
+    # set at the start if the user asked for the default settings; they are stored once this App
+    # finished starting (see below)
+    defaultsRequested <- FALSE
     observeEvent(
       session,
       {
         startState <- moveapps::restoreShinyBookmark(session)
-        if (identical(startState, "defaults")) {
-          # store the default settings (replaces the stored settings, also on MoveApps)
-          storeSettings()
-        }
+        defaultsRequested <<- identical(startState, "defaults")
         if (showsIgnoredSettings(session)) {
           # some stored settings did not fit the input data and show their defaults: not stored yet
           session$sendCustomMessage("ma-settings-not-stored", list())
         }
         # `input.json` documents the settings of this App in the workflow (also if they were never
         # stored): write it right away, and again once this App finished starting (see below).
-        # A page which is reloading still shows the settings before the restore: nothing to document
-        if (!identical(startState, "reloading")) {
+        # A page which is reloading still shows the settings before the restore, and requested
+        # default settings are documented once they are stored: nothing to document yet
+        if (identical(startState, "none")) {
           session$sendCustomMessage("extract-shiny-input", list())
         }
       },
@@ -324,16 +325,10 @@ createMoveAppsShinyServer <- function(input, output, session) {
     # Need to exclude the buttons and the SDK's internal inputs from being bookmarked
     setBookmarkExclude(c("ma_bookmark", "ma_restore_defaults", "ma_restore_defaults_confirm", "heartbeat", "shiny_input_json", "ma_startup_settings"))
     # Once this App finished starting (reported by `unsaved-settings-warning.js` with the ids of all
-    # settings shown in the UI), stored settings which do not fit the input data are ignored; unless
-    # the user already started changing settings
+    # settings shown in the UI): store requested default settings, or ignore stored settings which
+    # do not fit the input data
     observeEvent(input$ma_startup_settings, {
-      startup <- input$ma_startup_settings
-      reloaded <- !isTRUE(startup$userInteracted) &&
-        moveapps::ignoreNotApplicableSettings(session, unlist(startup$settingIds))
-      if (!reloaded) {
-        # write `input.json` again: now it also contains the settings created via `renderUI`
-        session$sendCustomMessage("extract-shiny-input", list())
-      }
+      onStartupFinished(session, input$ma_startup_settings, defaultsRequested, storeSettings)
     })
     # Ask for confirmation before deleting the stored settings
     observeEvent(input$ma_restore_defaults, {

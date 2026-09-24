@@ -292,6 +292,38 @@ showsIgnoredSettings <- function(session) {
   identical(shiny::parseQueryString(session$clientData$url_search)$`_state_id_`, adjustedStateId)
 }
 
+#' Finish Starting This App
+#'
+#' Runs once the browser reports that this App finished starting: all settings are shown,
+#' also the ones created via \code{renderUI}, and the App's own updates are applied.
+#' Requested default settings are stored only now, so that they are complete. Otherwise,
+#' stored settings which do not fit the input data are ignored.
+#'
+#' @param session A Shiny session object.
+#' @param startup The report of the browser (\code{settingIds}, \code{userInteracted}).
+#' @param defaultsRequested \code{TRUE} if this session started with the default settings
+#'   requested via \code{\link{restoreDefaultSettings}}.
+#' @param storeSettings Function storing the current settings (also writes \code{input.json});
+#'   returns whether this succeeded.
+#' @noRd
+onStartupFinished <- function(session, startup, defaultsRequested, storeSettings) {
+  if (defaultsRequested) {
+    # the default settings replace the stored settings (also on MoveApps); `input.json` documents
+    # them also if storing failed
+    if (!storeSettings()) {
+      session$sendCustomMessage("extract-shiny-input", list())
+    }
+    return(invisible())
+  }
+
+  reloaded <- !isTRUE(startup$userInteracted) &&
+    ignoreNotApplicableSettings(session, unlist(startup$settingIds))
+  if (!reloaded) {
+    # write `input.json` again: now it also contains the settings created via `renderUI`
+    session$sendCustomMessage("extract-shiny-input", list())
+  }
+}
+
 #' Save Shiny Input as JSON
 #'
 #' Saves Shiny input values as a JSON file for external access and debugging purposes.
