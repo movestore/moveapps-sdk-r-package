@@ -13,6 +13,10 @@ $(function () {
     // until the user clicks or types for the first time, all changes are part of starting this App
     // (e.g. inputs filled by the server once the data is loaded) and are taken as stored
     let userInteracted = false;
+    // the settings when a store was triggered (a click on "Store settings", or the report at the end of
+    // the start, which stores requested default settings): they become the stored ones once the server
+    // confirms, so a change made while the server stores and uploads stays a change
+    let settingsBeingStored = null;
 
     // value of a bound shiny input (undefined for action buttons, e.g. "Store settings")
     function settingValue(el) {
@@ -142,8 +146,10 @@ $(function () {
         startupReported = true;
         clearTimeout(startupTimer);
         updateWarning();
+        const settings = currentSettings();
+        settingsBeingStored = settings;
         Shiny.setInputValue('ma_startup_settings', {
-            settingIds: Object.keys(currentSettings()),
+            settingIds: Object.keys(settings),
             changedIds: Array.from(changedIds)
         }, {priority: 'event'});
     }
@@ -192,16 +198,16 @@ $(function () {
         }
         notStored = false;
         rememberStoredSettings();
+        settingsBeingStored = Object.assign({}, storedSettings);
     });
-    // the server confirms that the settings were stored (and uploaded); they are the shown ones, also
-    // if the server stored them itself (the default settings, once this App finished starting)
+    // the server confirms that the settings were stored (and uploaded)
     Shiny.addCustomMessageHandler('ma-settings-stored', function (message) {
         notStored = false;
-        if (storedSettings !== null) {
-            rememberStoredSettings();
-        } else {
-            updateWarning();
+        if (settingsBeingStored !== null && storedSettings !== null) {
+            storedSettings = settingsBeingStored;
         }
+        settingsBeingStored = null;
+        updateWarning();
     });
     // the shown settings differ from the stored ones (storing failed, or stored settings which do not
     // fit the input data were ignored): show the warning until storing succeeds
