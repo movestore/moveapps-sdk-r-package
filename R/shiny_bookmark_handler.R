@@ -128,7 +128,7 @@ saveBookmarkAsLatest <- function(url) {
 restoreShinyBookmark <- function(session) {
   tryCatch(
     {
-      queryString <- shiny::parseQueryString(session$clientData$url_search)
+      queryString <- shiny::getQueryString(session)
       defaultsToken <- queryString[[restoreDefaultsQueryParam]]
       if (!is.null(defaultsToken)) {
         # drop the marker, so that a later reload restores the stored settings again
@@ -264,7 +264,7 @@ notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
 ignoreNotApplicableSettings <- function(session, settingIds, changedIds = character()) {
   tryCatch(
     {
-      stateId <- shiny::parseQueryString(session$clientData$url_search)$`_state_id_`
+      stateId <- shiny::getQueryString(session)$`_state_id_`
       if (!identical(stateId, "latest") || !fs::file_exists(bookmarkRdsTargetPath)) {
         return(invisible(FALSE))
       }
@@ -301,7 +301,7 @@ ignoreNotApplicableSettings <- function(session, settingIds, changedIds = charac
 #' @return \code{TRUE} if the session was reloaded by \code{\link{ignoreNotApplicableSettings}}.
 #' @noRd
 showsIgnoredSettings <- function(session) {
-  identical(shiny::parseQueryString(session$clientData$url_search)$`_state_id_`, adjustedStateId)
+  identical(shiny::getQueryString(session)$`_state_id_`, adjustedStateId)
 }
 
 #' Finish Starting This App
