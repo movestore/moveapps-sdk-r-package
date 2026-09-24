@@ -23,7 +23,28 @@ $(function () {
         if (!binding) {
             return undefined;
         }
+        if (el.type === 'file') {
+            return JSON.stringify(uploadValue(el, binding));
+        }
         return JSON.stringify(binding.getValue(el));
+    }
+
+    // name and size of each uploaded file, e.g. [["area.gpkg", 17]]. Shiny's `getValue()` only knows a
+    // restored upload (null before and after a new one), the element only a new one (empty after a restore)
+    function uploadValue(el, binding) {
+        if (el.files && el.files.length > 0) {
+            return Array.from(el.files).map(function (file) {
+                return [file.name, file.size];
+            });
+        }
+        const restored = binding.getValue(el);
+        if (!restored) {
+            return null;
+        }
+        const sizes = [].concat(restored.size);
+        return [].concat(restored.name).map(function (name, i) {
+            return [name, sizes[i]];
+        });
     }
 
     // current value of every bound shiny input
