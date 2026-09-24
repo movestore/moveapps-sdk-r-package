@@ -33,13 +33,23 @@ $(function () {
         return JSON.stringify(binding.getValue(el));
     }
 
-    // name and size of each uploaded file, e.g. [["area.gpkg", 17]]. Shiny's `getValue()` only knows a
-    // restored upload (null before and after a new one), the element only a new one (empty after a restore)
-    function uploadValue(el, binding) {
-        if (el.files && el.files.length > 0) {
-            return Array.from(el.files).map(function (file) {
+    // name and size of each file of the last completed upload per input id, e.g. {upload: [["area.gpkg", 17]]}.
+    // Shiny reports a completed upload with `inputType` "shiny.fileupload", then empties the element
+    // (`val("")`); a failed upload never completes
+    const completedUploads = {};
+    $(document).on('shiny:inputchanged', function (event) {
+        if (event.inputType === 'shiny.fileupload') {
+            completedUploads[event.name] = event.value.map(function (file) {
                 return [file.name, file.size];
             });
+        }
+    });
+
+    // name and size of each uploaded file, e.g. [["area.gpkg", 17]]: of the last completed upload, or of
+    // the restored one (shiny's `getValue()` knows only that one, null before and after a new upload)
+    function uploadValue(el, binding) {
+        if (completedUploads[el.id]) {
+            return completedUploads[el.id];
         }
         const restored = binding.getValue(el);
         if (!restored) {
