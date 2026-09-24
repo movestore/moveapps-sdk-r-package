@@ -206,6 +206,8 @@ restoreDefaultSettings <- function(session) {
 #' choices created via \code{renderUI} from the input data do not contain it anymore.
 #' An upload (\code{fileInput}) is compared without its \code{datapath}: shiny copies a
 #' restored upload to a new temporary path (e.g. \code{0.gpkg} to \code{/tmp/Rtmp.../0.gpkg}).
+#' It only counts as applied if that file exists: shiny's copy fails silently if the bookmark
+#' did not keep the file, and still hands the App the path.
 #'
 #' @param storedInputs Named list of the stored input values (content of \code{input.rds}).
 #' @param currentInputs Named list of the current input values.
@@ -214,14 +216,17 @@ restoreDefaultSettings <- function(session) {
 #' @return Character vector of the ids of the settings whose stored value was not applied.
 #' @noRd
 notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
+  isUpload <- function(value) is.data.frame(value) && "datapath" %in% names(value)
   withoutDatapath <- function(value) {
-    if (is.data.frame(value)) value[setdiff(names(value), "datapath")] else value
+    if (isUpload(value)) value[setdiff(names(value), "datapath")] else value
+  }
+  applied <- function(stored, current) {
+    isTRUE(all.equal(withoutDatapath(stored), withoutDatapath(current), check.attributes = FALSE)) &&
+      (!isUpload(current) || all(file.exists(current$datapath)))
   }
 
   ids <- intersect(settingIds, names(storedInputs))
-  Filter(function(id) {
-    !isTRUE(all.equal(withoutDatapath(storedInputs[[id]]), withoutDatapath(currentInputs[[id]]), check.attributes = FALSE))
-  }, ids)
+  Filter(function(id) !applied(storedInputs[[id]], currentInputs[[id]]), ids)
 }
 
 #' Ignore Stored Settings Which Do Not Fit the Input Data

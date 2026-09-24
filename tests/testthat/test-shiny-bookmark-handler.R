@@ -165,11 +165,22 @@ test_that("notApplicableSettings takes a restored upload as applied although shi
   upload <- function(name, datapath) data.frame(name = name, size = 17L, type = "application/octet-stream", datapath = datapath)
   stored <- list(upload = upload("area.gpkg", "0.gpkg"))
   # shiny copies a restored upload into a new temporary dir and hands the app that path
-  restored <- list(upload = upload("area.gpkg", "/tmp/RtmpAbc123/1b6c00853f78/0.gpkg"))
+  restoredPath <- file.path(newTempDir(), "0.gpkg")
+  writeLines("polygon", restoredPath)
+  restored <- list(upload = upload("area.gpkg", restoredPath))
 
   expect_length(moveapps:::notApplicableSettings(stored, restored, "upload"), 0)
   # control: uploads are still compared, a different file does not fit
-  expect_equal(moveapps:::notApplicableSettings(stored, list(upload = upload("other.gpkg", "/tmp/RtmpAbc123/1b6c00853f78/0.gpkg")), "upload"), "upload")
+  expect_equal(moveapps:::notApplicableSettings(stored, list(upload = upload("other.gpkg", restoredPath)), "upload"), "upload")
+})
+
+test_that("notApplicableSettings reports a restored upload whose file is missing", {
+  upload <- function(datapath) data.frame(name = "area.gpkg", size = 17L, type = "application/octet-stream", datapath = datapath)
+  stored <- list(upload = upload("0.gpkg"))
+  # the bookmark did not keep the file: shiny's copy fails silently and hands the app a path to nothing
+  restored <- list(upload = upload(file.path(newTempDir(), "0.gpkg")))
+
+  expect_equal(moveapps:::notApplicableSettings(stored, restored, "upload"), "upload")
 })
 
 test_that("ignoreNotApplicableSettings reloads with a copy of the stored settings without the ones which do not fit", {
