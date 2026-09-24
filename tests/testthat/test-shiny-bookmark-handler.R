@@ -99,13 +99,13 @@ test_that("restoreShinyBookmark skips the restore once for a requested reload wi
   storeFakeBookmark()
 
   reloaded <- mockSession(request$calls$queryStrings)
-  expect_true(moveapps::restoreShinyBookmark(reloaded$session))
+  expect_equal(moveapps::restoreShinyBookmark(reloaded$session), "defaults")
   expect_equal(reloaded$calls$queryStrings, "?")
   expect_equal(reloaded$calls$reloads, 0)
 
   # the token can only be used once: the same URL restores the stored settings
   again <- mockSession(request$calls$queryStrings)
-  expect_false(moveapps::restoreShinyBookmark(again$session))
+  expect_equal(moveapps::restoreShinyBookmark(again$session), "reloading")
   expect_equal(again$calls$reloads, 1)
 })
 
@@ -116,7 +116,7 @@ test_that("restoreShinyBookmark ignores a request for the default settings with 
   storeFakeBookmark()
   mock <- mockSession("?_ma_defaults_=unknown")
 
-  expect_false(moveapps::restoreShinyBookmark(mock$session))
+  expect_equal(moveapps::restoreShinyBookmark(mock$session), "reloading")
   expect_equal(mock$calls$queryStrings, c("?", "?_state_id_=latest"))
   expect_equal(mock$calls$reloads, 1)
   expect_true(file.exists("shiny_bookmarks/latest/input.rds"))
@@ -128,17 +128,17 @@ test_that("restoreShinyBookmark reloads with the stored settings only if they ex
   on.exit(setwd(old), add = TRUE)
 
   nothingStored <- mockSession()
-  expect_false(moveapps::restoreShinyBookmark(nothingStored$session))
+  expect_equal(moveapps::restoreShinyBookmark(nothingStored$session), "none")
   expect_equal(nothingStored$calls$reloads, 0)
 
   storeFakeBookmark()
   notLoaded <- mockSession()
-  expect_false(moveapps::restoreShinyBookmark(notLoaded$session))
+  expect_equal(moveapps::restoreShinyBookmark(notLoaded$session), "reloading")
   expect_equal(notLoaded$calls$queryStrings, "?_state_id_=latest")
   expect_equal(notLoaded$calls$reloads, 1)
 
   alreadyLoaded <- mockSession("?_state_id_=latest")
-  expect_false(moveapps::restoreShinyBookmark(alreadyLoaded$session))
+  expect_equal(moveapps::restoreShinyBookmark(alreadyLoaded$session), "none")
   expect_equal(alreadyLoaded$calls$reloads, 0)
 })
 

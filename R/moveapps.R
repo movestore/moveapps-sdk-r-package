@@ -302,8 +302,8 @@ createMoveAppsShinyServer <- function(input, output, session) {
     observeEvent(
       session,
       {
-        defaultsRequested <- moveapps::restoreShinyBookmark(session)
-        if (isTRUE(defaultsRequested)) {
+        startState <- moveapps::restoreShinyBookmark(session)
+        if (identical(startState, "defaults")) {
           # store the default settings (replaces the deleted settings, also on MoveApps)
           storeSettings()
         }
@@ -312,8 +312,11 @@ createMoveAppsShinyServer <- function(input, output, session) {
           session$sendCustomMessage("ma-settings-not-applicable", list())
         }
         # `input.json` documents the settings of this App in the workflow (also if they were never
-        # stored): write it right away, and again once this App finished starting (see below)
-        session$sendCustomMessage("extract-shiny-input", list())
+        # stored): write it right away, and again once this App finished starting (see below).
+        # A page which is reloading still shows the settings before the restore: nothing to document
+        if (!identical(startState, "reloading")) {
+          session$sendCustomMessage("extract-shiny-input", list())
+        }
       },
       once = TRUE
     )

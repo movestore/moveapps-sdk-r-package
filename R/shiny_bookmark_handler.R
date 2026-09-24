@@ -91,9 +91,10 @@ saveBookmarkAsLatest <- function(url) {
 #'
 #' @param session A Shiny session object, typically provided by the Shiny server function.
 #'
-#' @return Invisibly \code{TRUE} if default settings were requested via
-#'   \code{\link{restoreDefaultSettings}} (no bookmark is restored then), otherwise
-#'   invisibly \code{FALSE}. Called mainly for side effects (session reload and logging).
+#' @return Invisibly, how this session starts: \code{"defaults"} if default settings were
+#'   requested via \code{\link{restoreDefaultSettings}} (no bookmark is restored then),
+#'   \code{"reloading"} if the session is reloaded to restore the stored settings, otherwise
+#'   \code{"none"}. Called mainly for side effects (session reload and logging).
 #'
 #' @details
 #' The function performs the following checks and operations:
@@ -136,7 +137,7 @@ restoreShinyBookmark <- function(session) {
           # the user asked for the default settings: do not restore any bookmark
           rm(list = defaultsToken, envir = restoreDefaultsTokens)
           logger.debug("[bookmark] Skipped restoring the shiny bookmark b/c default settings were requested")
-          return(invisible(TRUE))
+          return(invisible("defaults"))
         }
         logger.warn("[bookmark] Ignored a request for the default settings with an unknown token")
       }
@@ -144,13 +145,14 @@ restoreShinyBookmark <- function(session) {
         shiny::updateQueryString(queryString = "?_state_id_=latest", session = session)
         logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
         session$reload()
+        return(invisible("reloading"))
       }
     },
     error = function(e) {
       logger.error(paste("[bookmark] Could not restore the shiny bookmark:", e))
     }
   )
-  invisible(FALSE)
+  invisible("none")
 }
 
 #' Restore Default Settings
