@@ -49,11 +49,11 @@ $(function () {
         if (!warning || storedSettings === null) {
             return;
         }
+        const settings = currentSettings();
         if (!userInteracted) {
-            storedSettings = currentSettings();
+            storedSettings = Object.assign({}, settings);
             changedIds.clear();
         }
-        const settings = currentSettings();
         Object.keys(settings).forEach(function (id) {
             if (!(id in storedSettings)) {
                 // fallback for an input which appeared without a `shiny:bound` event
@@ -157,9 +157,12 @@ $(function () {
         }
         setTimeout(updateWarning, 0);
     });
-    // re-check after every input change (deferred, so the DOM reflects the new value)
-    $(document).on('shiny:inputchanged', function () {
-        setTimeout(updateWarning, 0);
+    // re-check after every change of a setting (deferred, so the DOM reflects the new value). Only bound
+    // inputs are settings; `Shiny.setInputValue()` (heartbeat, map bounds, JSON extraction) has no binding
+    $(document).on('shiny:inputchanged', function (event) {
+        if (event.binding) {
+            setTimeout(updateWarning, 0);
+        }
     });
     // hide the warning as soon as "Store settings" is clicked
     $(document).on('click', '#ma_bookmark', function () {
