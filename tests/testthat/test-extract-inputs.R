@@ -11,6 +11,14 @@ extractInputsApp <- function(env = parent.frame()) {
       shiny::dateInput(inputId = "d", label = "Date", value = "2024-05-01"),
       shiny::selectInput(inputId = "sel_multi", label = "Select multiple", choices = c("A", "B", "C"), selected = c("A", "C"), multiple = TRUE),
       shiny::passwordInput(inputId = "pw", label = "Password", value = "secret"),
+      shiny::checkboxGroupInput(inputId = "cbg_nolabel", label = NULL, choices = c("A", "B"), selected = "B"),
+      shiny::radioButtons(inputId = "radio1", label = "Radio (1 choice)", choices = c("only")),
+      shiny::sliderInput(inputId = "range", label = "Slider range", min = 0, max = 100, value = c(10, 90)),
+      shiny::checkboxInput(inputId = "cb1", label = "Checkbox one", value = TRUE),
+      shiny::checkboxInput(inputId = "cb2", label = "Checkbox two"),
+      shiny::textInput(inputId = "txt", label = "Text", value = "hello"),
+      shiny::numericInput(inputId = "num_empty", label = "Numeric empty", value = NA),
+      shiny::passwordInput(inputId = "pw_empty", label = "Password empty", value = ""),
       shiny::fileInput(inputId = "upload", label = "Upload"),
       shiny::actionButton(inputId = "extract", label = "Extract"),
       shiny::bookmarkButton(id = "bookmark")
@@ -57,6 +65,21 @@ test_that("extract-inputs.js records every setting by its input id and complete 
   expect_equal(actual$d$value, "2024-05-01")
   expect_equal(unlist(actual$sel_multi$value), c("A", "C"))
   expect_equal(actual$pw$value, "***masked***")
+  expect_equal(unlist(actual$cbg_nolabel$value), "B")
+  expect_equal(actual$cbg_nolabel$label, "")
+  expect_equal(actual$radio1$value, "only")
+  expect_equal(actual$radio1$valueLabel, "only")
+  expect_equal(unlist(actual$range$value), c(10, 90))
+  expect_equal(actual$cb1$label, "Checkbox one")
+  expect_equal(actual$cb1$value, TRUE)
+  expect_equal(actual$cb2$label, "Checkbox two")
+  expect_equal(actual$cb2$value, FALSE)
+  expect_equal(actual$txt$value, "hello")
+  # groundcontrol requires a value: an empty setting is "", never null
+  expect_equal(actual$num_empty$value, "")
+  expect_equal(actual$pw_empty$value, "")
+  expect_equal(actual$upload$value, "")
+  expect_null(actual$upload$valueLabel)
   # control: an action button is no setting
   expect_null(actual$extract)
 })

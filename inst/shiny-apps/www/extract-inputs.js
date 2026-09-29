@@ -12,7 +12,9 @@ function extractShinyInput(message) {
         const entry = {
             label: settingLabel(el),
             inputId: el.id,
-            value: el.type === 'password' ? maskedValue(value) : value,
+            // groundcontrol requires a value: an empty setting (e.g. an upload not made yet, a numeric
+            // input set to NA) is recorded as "" and not as null
+            value: el.type === 'password' ? maskedValue(value) : (value === null ? '' : value),
         };
         const valueLabel = displayText(el, value);
         if (valueLabel !== undefined) {
@@ -25,9 +27,10 @@ function extractShinyInput(message) {
     Shiny.setInputValue('shiny_input_json', JSON.stringify(results), {priority: 'event'});
 }
 
-// shiny renders a label with the id `<inputId>-label`; none (or empty) for `label = NULL`
+// shiny renders a label with the id `<inputId>-label` (empty for `label = NULL`); a checkbox has none,
+// its text sits in the `<label>` around it
 function settingLabel(el) {
-    const label = document.getElementById(el.id + '-label');
+    const label = document.getElementById(el.id + '-label') || el.closest('label');
     return label ? label.textContent.trim() : '';
 }
 
