@@ -124,14 +124,22 @@ notifyPushBookmarkDir <- function() {
   }
   logger.debug("Notify pilot to push the shiny bookmark directory")
 
-  response <- httr::POST(
-    paste(pilotEndpoint(), "/pilot/api/v1/copilot/shiny-bookmark-dir", sep = ""),
-    httr::accept_json(),
-    if (httpClientLogging()) httr::verbose(info = TRUE, data_out = TRUE, data_in = TRUE)
+  # an unreachable pilot throws, and a pilot without this route answers 404 with no JSON at all:
+  # both are "not uploaded" (and must not end the callback which asked for the push)
+  uploaded <- tryCatch(
+    {
+      response <- httr::POST(
+        paste(pilotEndpoint(), "/pilot/api/v1/copilot/shiny-bookmark-dir", sep = ""),
+        httr::accept_json(),
+        if (httpClientLogging()) httr::verbose(info = TRUE, data_out = TRUE, data_in = TRUE)
+      )
+      isTRUE(httr::content(response, "parsed")[["success"]])
+    },
+    error = function(e) {
+      logger.debug("Notifying the pilot failed: %s", conditionMessage(e))
+      FALSE
+    }
   )
-
-  # a pilot without this route answers 404 with no JSON at all: that is "not uploaded" too
-  uploaded <- tryCatch(isTRUE(httr::content(response, "parsed")[["success"]]), error = function(e) FALSE)
   if (uploaded) {
     logger.debug("Uploaded shiny-bookmark directory")
   } else {

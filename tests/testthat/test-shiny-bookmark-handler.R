@@ -107,6 +107,47 @@ test_that("notifyPushBookmarkDir returns TRUE if uploading is faked", {
   expect_true(moveapps::notifyPushBookmarkDir())
 })
 
+# a hand-built httr response (httr::content() needs the content type and the raw body)
+pilotResponse <- function(status, body, contentType) {
+  structure(
+    list(
+      url = "http://localhost/pilot/api/v1/copilot/shiny-bookmark-dir",
+      status_code = status,
+      headers = structure(list(`content-type` = contentType), class = c("insensitive", "list")),
+      content = charToRaw(body)
+    ),
+    class = "response"
+  )
+}
+
+# answers the pilot POST with `answer()` and requires uploading not to be faked
+fakePilotAnswer <- function(answer, env = parent.frame()) {
+  old <- Sys.getenv("HTTP_CLIENT_FAKE", unset = NA)
+  withr::defer({ if (is.na(old)) Sys.unsetenv("HTTP_CLIENT_FAKE") else Sys.setenv(HTTP_CLIENT_FAKE = old) }, envir = env)
+  Sys.unsetenv("HTTP_CLIENT_FAKE")
+  local_mocked_bindings(POST = function(...) answer(), .package = "httr", .env = env)
+}
+
+test_that("notifyPushBookmarkDir returns TRUE if the pilot reports success", {
+  fakePilotAnswer(function() pilotResponse(200, '{"success":true}', "application/json"))
+  expect_true(moveapps::notifyPushBookmarkDir())
+})
+
+test_that("notifyPushBookmarkDir returns FALSE if the pilot reports a failure", {
+  fakePilotAnswer(function() pilotResponse(200, '{"success":false}', "application/json"))
+  expect_false(moveapps::notifyPushBookmarkDir())
+})
+
+test_that("notifyPushBookmarkDir returns FALSE if the pilot has no such route", {
+  fakePilotAnswer(function() pilotResponse(404, "<html>Not Found</html>", "text/html"))
+  expect_false(moveapps::notifyPushBookmarkDir())
+})
+
+test_that("notifyPushBookmarkDir returns FALSE if the pilot is unreachable", {
+  fakePilotAnswer(function() stop("Failed to connect to localhost port 8080"))
+  expect_false(moveapps::notifyPushBookmarkDir())
+})
+
 # records which pushes the bookmark hook asks for
 fakePushes <- function(saved, pushed, env = parent.frame()) {
   calls <- new.env()
