@@ -2,7 +2,7 @@ name: R Unit Tests
 
 on:
   push:
-    branches: ['*']
+    branches: ['**']
 
 jobs:
   test:
