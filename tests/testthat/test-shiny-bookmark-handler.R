@@ -311,6 +311,28 @@ test_that("restoreShinyBookmark leaves input.rds as it is if every file is there
   expect_identical(unname(tools::md5sum("shiny_bookmarks/latest/input.rds")), before)
 })
 
+test_that("restoreShinyBookmark drops a multi-file upload if any file is missing", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  writeLines("there", "shiny_bookmarks/latest/0.gpkg")
+  writeLines("there", "shiny_bookmarks/latest/2.gpkg")
+  writeLines("there", "shiny_bookmarks/latest/3.gpkg")
+
+  partial <- data.frame(name = c("a.gpkg", "b.gpkg"), size = c(5L, 5L), type = c("", ""), datapath = c("0.gpkg", "1.gpkg"))
+  complete <- data.frame(name = c("c.gpkg", "d.gpkg"), size = c(5L, 5L), type = c("", ""), datapath = c("2.gpkg", "3.gpkg"))
+  saveRDS(list(partial = partial, complete = complete), "shiny_bookmarks/latest/input.rds")
+
+  mock <- mockSession()
+  expect_equal(moveapps::restoreShinyBookmark(mock$session), "reloading")
+
+  stored <- readRDS("shiny_bookmarks/latest/input.rds")
+  # partial is dropped because 1.gpkg is missing; complete is kept because both files exist
+  expect_named(stored, "complete")
+  expect_identical(stored$complete$datapath, c("2.gpkg", "3.gpkg"))
+})
+
 test_that("notApplicableSettings finds the stored settings which were not applied", {
   stored <- list(animal = "C", animals = c("A", "C"), speed = 90L, width = 3L, hidden = "x")
   current <- list(animal = "A", animals = "A", speed = 50, width = 3, hidden = "y")
