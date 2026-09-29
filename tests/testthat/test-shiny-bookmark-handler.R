@@ -100,6 +100,60 @@ test_that("notifyPushBookmark returns TRUE if uploading is faked", {
   expect_true(moveapps::notifyPushBookmark("input.rds"))
 })
 
+test_that("notifyPushBookmarkDir returns TRUE if uploading is faked", {
+  old <- Sys.getenv("HTTP_CLIENT_FAKE", unset = NA)
+  on.exit({ if (is.na(old)) Sys.unsetenv("HTTP_CLIENT_FAKE") else Sys.setenv(HTTP_CLIENT_FAKE = old) }, add = TRUE)
+  Sys.setenv(HTTP_CLIENT_FAKE = "yes")
+  expect_true(moveapps::notifyPushBookmarkDir())
+})
+
+# records which pushes the bookmark hook asks for
+fakePushes <- function(saved, pushed, env = parent.frame()) {
+  calls <- new.env()
+  calls$dir <- 0
+  calls$single <- character()
+  local_mocked_bindings(
+    saveBookmarkAsLatest = function(url) invisible(saved),
+    notifyPushBookmarkDir = function() { calls$dir <- calls$dir + 1; invisible(pushed) },
+    notifyPushBookmark = function(fileName) { calls$single <- c(calls$single, fileName); invisible(TRUE) },
+    .package = "moveapps",
+    .env = env
+  )
+  calls
+}
+
+test_that("onSettingsBookmarked pushes the whole bookmark directory once it is saved", {
+  skip_if_not_installed("shiny")
+  pushes <- fakePushes(saved = TRUE, pushed = TRUE)
+  mock <- mockSession()
+
+  expect_true(moveapps:::onSettingsBookmarked("http://localhost:3838/?_state_id_=abc123", mock$session))
+  expect_equal(pushes$dir, 1)
+  # the single-file push of input.rds would leave the files next to it behind
+  expect_length(pushes$single, 0)
+  expect_equal(mock$calls$queryStrings, "?_state_id_=latest")
+  expect_equal(mock$calls$messages, "ma-settings-stored")
+})
+
+test_that("onSettingsBookmarked pushes nothing if the bookmark could not be saved", {
+  skip_if_not_installed("shiny")
+  pushes <- fakePushes(saved = FALSE, pushed = TRUE)
+  mock <- mockSession()
+
+  expect_false(moveapps:::onSettingsBookmarked("http://localhost:3838/?_state_id_=abc123", mock$session))
+  expect_equal(pushes$dir, 0)
+  expect_length(mock$calls$messages, 0)
+})
+
+test_that("onSettingsBookmarked does not report a failed push as stored", {
+  skip_if_not_installed("shiny")
+  fakePushes(saved = TRUE, pushed = FALSE)
+  mock <- mockSession()
+
+  expect_false(moveapps:::onSettingsBookmarked("http://localhost:3838/?_state_id_=abc123", mock$session))
+  expect_length(mock$calls$messages, 0)
+})
+
 test_that("restoreDefaultSettings reloads with a one-time token and keeps the stored settings until the defaults are stored", {
   skip_if_not_installed("shiny")
   old <- setwd(newTempDir())

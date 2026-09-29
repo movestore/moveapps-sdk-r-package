@@ -179,6 +179,25 @@ createMoveAppsShinyUI <- function(request) {
   )
 }
 
+#' Upload a Just Saved Bookmark
+#'
+#' Runs once shiny saved a bookmark: moves it to the "latest" location and pushes the whole
+#' directory to MoveApps.
+#' @param url The bookmark URL shiny hands to \code{onBookmarked()}.
+#' @param session A Shiny session object.
+#' @return \code{TRUE} if the bookmark was saved and uploaded.
+#' @noRd
+onSettingsBookmarked <- function(url, session) {
+  stored <- moveapps::saveBookmarkAsLatest(url) && moveapps::notifyPushBookmarkDir()
+  if (stored) {
+    # a reload (e.g. F5) of this page restores the settings just stored
+    shiny::updateQueryString(queryString = "?_state_id_=latest", mode = "replace", session = session)
+    # hides the warning about not yet stored settings
+    session$sendCustomMessage("ma-settings-stored", list())
+  }
+  stored
+}
+
 #' Create MoveApps Shiny Server Function
 #'
 #' Implements the server logic for a MoveApps Shiny application simulation.
@@ -381,12 +400,8 @@ createMoveAppsShinyServer <- function(input, output, session) {
   # see https://shiny.rstudio.com/articles/advanced-bookmarking.html
   onBookmarked(function(url) {
     # only upload a successfully saved bookmark; failures are reported by `storeSettings()`
-    if (moveapps::saveBookmarkAsLatest(url) && moveapps::notifyPushBookmark("input.rds")) {
+    if (onSettingsBookmarked(url, session)) {
       settingsStored <<- TRUE
-      # a reload (e.g. F5) of this page restores the settings just stored
-      shiny::updateQueryString(queryString = "?_state_id_=latest", mode = "replace", session = session)
-      # hides the warning about not yet stored settings
-      session$sendCustomMessage("ma-settings-stored", list())
     }
   })
 }

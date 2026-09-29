@@ -102,6 +102,44 @@ notifyPushBookmark <- function(fileName) {
     }
 }
 
+#' Push the Shiny Bookmark Directory to Pilot
+#'
+#' Notifies the pilot service to push the whole "latest" bookmark directory to MoveApps:
+#' \code{input.rds}, \code{input.json} and every file shiny stored next to them (e.g. the uploads
+#' of a \code{fileInput}). Replaces the files stored before, so a removed upload is gone on MoveApps too.
+#'
+#' @return Invisibly \code{TRUE} if the bookmark was uploaded (or uploading is faked), otherwise
+#'   invisibly \code{FALSE}.
+#' @details
+#' If the HTTP_CLIENT_FAKE environment variable is set to "yes", the function
+#' returns early without sending any notification (useful for testing).
+#' @export
+#' @examples
+#' \dontrun{
+#' notifyPushBookmarkDir()
+#' }
+notifyPushBookmarkDir <- function() {
+  if (Sys.getenv(x = "HTTP_CLIENT_FAKE", "no") == "yes") {
+    return(invisible(TRUE))
+  }
+  logger.debug("Notify pilot to push the shiny bookmark directory")
+
+  response <- httr::POST(
+    paste(pilotEndpoint(), "/pilot/api/v1/copilot/shiny-bookmark-dir", sep = ""),
+    httr::accept_json(),
+    if (httpClientLogging()) httr::verbose(info = TRUE, data_out = TRUE, data_in = TRUE)
+  )
+
+  # a pilot without this route answers 404 with no JSON at all: that is "not uploaded" too
+  uploaded <- tryCatch(isTRUE(httr::content(response, "parsed")[["success"]]), error = function(e) FALSE)
+  if (uploaded) {
+    logger.debug("Uploaded shiny-bookmark directory")
+  } else {
+    logger.info("Couldn't upload shiny-bookmark directory")
+  }
+  invisible(uploaded)
+}
+
 #' Store Configuration in Pilot
 #'
 #' Stores application configuration in the pilot service and updates the local

@@ -11,11 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Restore default settings" (shiny) button next to the "Store settings" button, which (after confirmation) reloads this App with its default settings and stores these, replacing the stored settings (new exported function `restoreDefaultSettings()`)
 - Warning next to the "Store settings" (shiny) button while changed settings are not stored yet, or storing them failed
 - Stored settings which do not fit the current input data (e.g. a track or attribute created via `renderUI` which is not part of the data anymore) are ignored: such a setting shows what shiny makes of the stored value (e.g. the first choice of a `selectInput()`, or nothing for a multiple selection, radio buttons or a checkbox group), together with the warning about not yet stored settings (new exported function `ignoreNotApplicableSettings()`)
+- `notifyPushBookmarkDir()`: pushes the whole shiny bookmark (`input.rds`, `input.json` and the files stored next to them) to MoveApps
 
 ### Changed
 - `saveBookmarkAsLatest()` keeps every file shiny stores in the bookmark (e.g. the uploads of a `fileInput()`), not only `input.rds`, and removes the files of an earlier bookmark it does not carry anymore
 - `saveBookmarkAsLatest()` and `notifyPushBookmark()` return (invisibly) whether the bookmark was saved/uploaded
 - The shiny bookmark is only uploaded if it was saved successfully
+- "Store settings" (shiny) pushes the whole bookmark instead of `input.rds` only, so the uploads of a `fileInput()` are available in future runs of the workflow (needs the pilot route `/copilot/shiny-bookmark-dir`)
 - The WebSocket heartbeat and the JSON extraction are no longer stored in the shiny bookmark
 - `input.json` is written (and uploaded) again once the (shiny) App finished starting, so that it also contains the settings created via `renderUI`
 
