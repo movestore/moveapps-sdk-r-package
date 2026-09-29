@@ -22,23 +22,56 @@ ensureBookmarkDirExists <- function() {
 # a stored `fileInput()` value: a data frame with each file's `name`, `size`, `type` and `datapath`
 isUploadValue <- function(value) is.data.frame(value) && "datapath" %in% names(value)
 
-#' Drop Stored Uploads Whose File Is Missing
+#' Drop Stored Uploads Shiny Cannot Restore
 #'
-#' Removes each stored \code{fileInput} value from the "latest" \code{input.rds} whose file is not in
-#' the bookmark directory, e.g. in a shared workflow (MoveApps shares the settings, not the files).
-#' Shiny would otherwise restore it as an upload whose \code{datapath} points nowhere: the App shows
-#' the file name and a complete progress bar, and reading the file fails or silently yields nothing.
+#' Removes each stored \code{fileInput} value from the "latest" \code{input.rds} which shiny would
+#' restore wrongly or not at all. Three rules, checked in this order:
+#' \enumerate{
+#'   \item Multi-file upload (\code{multiple = TRUE}, more than one row): shiny's restore handler
+#'     compares the whole \code{datapath} vector in an \code{if} and errors, so the session
+#'     would die on every start.
+#'   \item A file is not in the bookmark directory, e.g. in a shared workflow (MoveApps shares the
+#'     settings, not the files). Shiny would restore an upload whose \code{datapath} points
+#'     nowhere: the App shows the file name and a complete progress bar, and reading the file
+#'     fails or silently yields nothing.
+#'   \item The \code{datapath} is also referenced by another stored upload. Shiny names the files of
+#'     each upload job \code{0.<ext>}, \code{1.<ext>} ... and the bookmark copies them by name, so
+#'     two inputs with the same extension share one file, the later one's. Which one owns it
+#'     is unknowable, so all of them are dropped.
+#' }
 #' @return Invisibly, the ids of the dropped inputs.
 #' @noRd
 dropUploadsWithoutFile <- function() {
   inputs <- readRDS(bookmarkRdsTargetPath)
-  keep <- vapply(inputs, function(value) {
-    !isUploadValue(value) || all(fs::file_exists(fs::path(bookmarkDir, value$datapath)))
-  }, logical(1))
-  dropped <- names(inputs)[!keep]
+  uploads <- Filter(isUploadValue, inputs)
+
+  multiFile <- names(Filter(function(upload) nrow(upload) > 1, uploads))
+  fileMissing <- names(Filter(function(upload) {
+    !all(fs::file_exists(fs::path(bookmarkDir, upload$datapath)))
+  }, uploads))
+  fileMissing <- setdiff(fileMissing, multiFile)
+
+  # how many stored uploads reference each file (a file counts once per upload)
+  references <- table(unlist(lapply(uploads, function(upload) unique(upload$datapath))))
+  sharedFile <- names(Filter(function(upload) {
+    any(references[as.character(upload$datapath)] > 1)
+  }, uploads))
+  sharedFile <- setdiff(sharedFile, c(multiFile, fileMissing))
+
+  reasons <- list(
+    "shiny cannot restore a multi-file upload" = multiFile,
+    "file is missing" = fileMissing,
+    "file is shared with another upload" = sharedFile
+  )
+  for (reason in names(reasons)) {
+    if (length(reasons[[reason]]) > 0) {
+      logger.info(paste0("[bookmark] Dropped stored uploads, ", reason, ": ", paste(reasons[[reason]], collapse = ", ")))
+    }
+  }
+
+  dropped <- unlist(reasons, use.names = FALSE)
   if (length(dropped) > 0) {
-    logger.info(paste("[bookmark] Dropped stored uploads whose file is missing:", paste(dropped, collapse = ", ")))
-    saveRDS(inputs[keep], bookmarkRdsTargetPath)
+    saveRDS(inputs[!names(inputs) %in% dropped], bookmarkRdsTargetPath)
   }
   invisible(dropped)
 }

@@ -311,7 +311,7 @@ test_that("restoreShinyBookmark leaves input.rds as it is if every file is there
   expect_identical(unname(tools::md5sum("shiny_bookmarks/latest/input.rds")), before)
 })
 
-test_that("restoreShinyBookmark drops a multi-file upload if any file is missing", {
+test_that("restoreShinyBookmark drops every multi-file upload, shiny cannot restore it", {
   skip_if_not_installed("shiny")
   old <- setwd(newTempDir())
   on.exit(setwd(old), add = TRUE)
@@ -319,18 +319,51 @@ test_that("restoreShinyBookmark drops a multi-file upload if any file is missing
   writeLines("there", "shiny_bookmarks/latest/0.gpkg")
   writeLines("there", "shiny_bookmarks/latest/2.gpkg")
   writeLines("there", "shiny_bookmarks/latest/3.gpkg")
+  writeLines("there", "shiny_bookmarks/latest/4.gpkg")
 
   partial <- data.frame(name = c("a.gpkg", "b.gpkg"), size = c(5L, 5L), type = c("", ""), datapath = c("0.gpkg", "1.gpkg"))
   complete <- data.frame(name = c("c.gpkg", "d.gpkg"), size = c(5L, 5L), type = c("", ""), datapath = c("2.gpkg", "3.gpkg"))
-  saveRDS(list(partial = partial, complete = complete), "shiny_bookmarks/latest/input.rds")
+  saveRDS(
+    list(partial = partial, complete = complete, single = storedUpload("e.gpkg", "4.gpkg")),
+    "shiny_bookmarks/latest/input.rds"
+  )
 
   mock <- mockSession()
   expect_equal(moveapps::restoreShinyBookmark(mock$session), "reloading")
 
   stored <- readRDS("shiny_bookmarks/latest/input.rds")
-  # partial is dropped because 1.gpkg is missing; complete is kept because both files exist
-  expect_named(stored, "complete")
-  expect_identical(stored$complete$datapath, c("2.gpkg", "3.gpkg"))
+  # partial: 1.gpkg is missing; complete: all files exist, but shiny's restore handler errors on a
+  # datapath with more than one element; single is the control and stays
+  expect_named(stored, "single")
+  expect_identical(stored$single$datapath, "4.gpkg")
+})
+
+test_that("restoreShinyBookmark drops uploads which share one stored file", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  # shiny names the files of each upload job 0.<ext>, 1.<ext>, ...; the bookmark copies them by
+  # name, so two fileInputs with a .gpkg each end up on one file. Which one owns it is unknowable.
+  writeLines("there", "shiny_bookmarks/latest/0.gpkg")
+  writeLines("there", "shiny_bookmarks/latest/1.gpkg")
+  saveRDS(
+    list(
+      first = storedUpload("a.gpkg", "0.gpkg"),
+      second = storedUpload("b.gpkg", "0.gpkg"),
+      other = storedUpload("c.gpkg", "1.gpkg"),
+      text = "hello"
+    ),
+    "shiny_bookmarks/latest/input.rds"
+  )
+
+  mock <- mockSession()
+  expect_equal(moveapps::restoreShinyBookmark(mock$session), "reloading")
+
+  stored <- readRDS("shiny_bookmarks/latest/input.rds")
+  expect_named(stored, c("other", "text"))
+  expect_identical(stored$other$datapath, "1.gpkg")
+  expect_identical(stored$text, "hello")
 })
 
 test_that("notApplicableSettings finds the stored settings which were not applied", {
