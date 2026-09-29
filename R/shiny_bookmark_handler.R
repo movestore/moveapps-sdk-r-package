@@ -19,6 +19,30 @@ ensureBookmarkDirExists <- function() {
   }
 }
 
+# a stored `fileInput()` value: a data frame with each file's `name`, `size`, `type` and `datapath`
+isUploadValue <- function(value) is.data.frame(value) && "datapath" %in% names(value)
+
+#' Drop Stored Uploads Whose File Is Missing
+#'
+#' Removes each stored \code{fileInput} value from the "latest" \code{input.rds} whose file is not in
+#' the bookmark directory, e.g. in a shared workflow (MoveApps shares the settings, not the files).
+#' Shiny would otherwise restore it as an upload whose \code{datapath} points nowhere: the App shows
+#' the file name and a complete progress bar, and reading the file fails or silently yields nothing.
+#' @return Invisibly, the ids of the dropped inputs.
+#' @noRd
+dropUploadsWithoutFile <- function() {
+  inputs <- readRDS(bookmarkRdsTargetPath)
+  keep <- vapply(inputs, function(value) {
+    !isUploadValue(value) || all(fs::file_exists(fs::path(bookmarkDir, value$datapath)))
+  }, logical(1))
+  dropped <- names(inputs)[!keep]
+  if (length(dropped) > 0) {
+    logger.info(paste("[bookmark] Dropped stored uploads whose file is missing:", paste(dropped, collapse = ", ")))
+    saveRDS(inputs[keep], bookmarkRdsTargetPath)
+  }
+  invisible(dropped)
+}
+
 #' Save Shiny Bookmark as Latest
 #'
 #' Moves a Shiny bookmark from its temporary location to a persistent "latest" location.
@@ -141,6 +165,8 @@ restoreShinyBookmark <- function(session) {
         logger.warn("[bookmark] Ignored a request for the default settings with an unknown token")
       }
       if(fs::file_exists(bookmarkRdsTargetPath) && is.null(queryString$`_state_id_`)) {
+        # the only way into a restore: hubble embeds the App without `_state_id_`
+        dropUploadsWithoutFile()
         shiny::updateQueryString(queryString = "?_state_id_=latest", session = session)
         logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
         session$reload()
@@ -217,14 +243,13 @@ restoreDefaultSettings <- function(session) {
 #' @return Character vector of the ids of the settings whose stored value was not applied.
 #' @noRd
 notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
-  isUpload <- function(value) is.data.frame(value) && "datapath" %in% names(value)
   withoutDatapath <- function(value) {
-    if (isUpload(value)) value[setdiff(names(value), "datapath")] else value
+    if (isUploadValue(value)) value[setdiff(names(value), "datapath")] else value
   }
   applied <- function(stored, current) {
     is.null(stored) ||
       isTRUE(all.equal(withoutDatapath(stored), withoutDatapath(current), check.attributes = FALSE)) &&
-        (!isUpload(current) || all(file.exists(current$datapath)))
+        (!isUploadValue(current) || all(file.exists(current$datapath)))
   }
 
   ids <- intersect(settingIds, names(storedInputs))

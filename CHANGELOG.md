@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Store settings" (shiny) pushes the whole bookmark instead of `input.rds` only, so the uploads of a `fileInput()` are available in future runs of the workflow (needs the pilot route `/copilot/shiny-bookmark-dir`)
 - The WebSocket heartbeat and the JSON extraction are no longer stored in the shiny bookmark
 - `input.json` is written (and uploaded) again once the (shiny) App finished starting, so that it also contains the settings created via `renderUI`
+- A stored upload whose file is missing (e.g. in a shared workflow, which gets the settings but not the files) is dropped before the settings are restored, instead of handing the App a path to nothing
 
 ## [v1.0.3] - 2025-12-16
 

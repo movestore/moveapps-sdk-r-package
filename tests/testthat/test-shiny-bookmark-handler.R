@@ -275,6 +275,42 @@ test_that("restoreShinyBookmark reloads with the stored settings only if they ex
   expect_equal(alreadyLoaded$calls$reloads, 0)
 })
 
+storedUpload <- function(name, datapath) data.frame(name = name, size = 5L, type = "", datapath = datapath)
+
+test_that("restoreShinyBookmark drops a stored upload whose file is missing before it reloads", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  writeLines("there", "shiny_bookmarks/latest/1.gpkg")
+  saveRDS(
+    list(missing = storedUpload("a.gpkg", "0.gpkg"), present = storedUpload("b.gpkg", "1.gpkg"), text = "hello"),
+    "shiny_bookmarks/latest/input.rds"
+  )
+  mock <- mockSession()
+
+  expect_equal(moveapps::restoreShinyBookmark(mock$session), "reloading")
+  stored <- readRDS("shiny_bookmarks/latest/input.rds")
+  # control: an upload whose file is there and a plain value stay untouched
+  expect_named(stored, c("present", "text"))
+  expect_identical(stored$text, "hello")
+  expect_identical(stored$present$datapath, "1.gpkg")
+})
+
+test_that("restoreShinyBookmark leaves input.rds as it is if every file is there", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  writeLines("there", "shiny_bookmarks/latest/0.gpkg")
+  saveRDS(list(upload = storedUpload("a.gpkg", "0.gpkg")), "shiny_bookmarks/latest/input.rds")
+  before <- unname(tools::md5sum("shiny_bookmarks/latest/input.rds"))
+
+  moveapps::restoreShinyBookmark(mockSession()$session)
+
+  expect_identical(unname(tools::md5sum("shiny_bookmarks/latest/input.rds")), before)
+})
+
 test_that("notApplicableSettings finds the stored settings which were not applied", {
   stored <- list(animal = "C", animals = c("A", "C"), speed = 90L, width = 3L, hidden = "x")
   current <- list(animal = "A", animals = "A", speed = 50, width = 3, hidden = "y")
