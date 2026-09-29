@@ -14,6 +14,8 @@ invisibly \code{FALSE}.
 Notifies the pilot service to push the whole "latest" bookmark directory to MoveApps:
 \code{input.rds}, \code{input.json} and every file shiny stored next to them (e.g. the uploads
 of a \code{fileInput}). Replaces the files stored before, so a removed upload is gone on MoveApps too.
+The \code{input.json} pushed here is still the previous extraction; the current one follows
+via \code{notifyPushBookmark("input.json")} once the browser has extracted it.
 }
 \details{
 If the HTTP_CLIENT_FAKE environment variable is set to "yes", the function
