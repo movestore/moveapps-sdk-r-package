@@ -1,92 +1,49 @@
 Shiny.addCustomMessageHandler('extract-shiny-input', extractShinyInput)
 
+// every setting as {label, inputId, value} with the value shiny sends to the server (SDK issue #7);
+// radio buttons and uploads also carry a display text as `valueLabel`
 function extractShinyInput(message) {
-    const inputs = document.querySelectorAll('.shiny-input-container');
     const results = [];
-
-    inputs.forEach(function (container) {
-        const inputData = extractInputData(container);
-        if (inputData) {
-            results.push(inputData);
+    document.querySelectorAll('.shiny-bound-input').forEach(function (el) {
+        const value = MoveAppsSettings.value(el);
+        if (value === undefined) {
+            return;
         }
+        const entry = {
+            label: settingLabel(el),
+            inputId: el.id,
+            value: el.type === 'password' ? maskedValue(value) : value,
+        };
+        const valueLabel = displayText(el, value);
+        if (valueLabel !== undefined) {
+            entry.valueLabel = valueLabel;
+        }
+        results.push(entry);
     });
 
     // submit JSON as STRING (avoids conversion to table at the shiny server)
     Shiny.setInputValue('shiny_input_json', JSON.stringify(results), {priority: 'event'});
 }
 
-function extractInputData(container) {
-    const radioButtons = container.querySelectorAll('input[type="radio"]');
-    
-    if (radioButtons.length > 1) {
-        // This is a radio group
-        return extractRadioGroupData(container, radioButtons);
-    } else {
-        // This is a single input element
-        return extractSingleInputData(container);
-    }
+// shiny renders a label with the id `<inputId>-label`; none (or empty) for `label = NULL`
+function settingLabel(el) {
+    const label = document.getElementById(el.id + '-label');
+    return label ? label.textContent.trim() : '';
 }
 
-function extractRadioGroupData(container, radioButtons) {
-    const groupLabel = container.querySelector('label');
-    const selectedRadio = Array.from(radioButtons).find(radio => radio.checked);
-    
-    if (!selectedRadio) {
-        return null; // No selection
-    }
-    
-    const selectedLabel = getRadioButtonLabel(selectedRadio);
-    
-    return {
-        label: groupLabel ? groupLabel.textContent.trim() : '',
-        inputId: selectedRadio.value,  // Use the value of selected radio
-        value: selectedLabel           // Use the display text
-    };
+function maskedValue(value) {
+    return value && value.length > 0 ? '***masked***' : '';
 }
 
-function extractSingleInputData(container) {
-    const label = container.querySelector('label');
-    const inputEl = container.querySelector('input, select, textarea');
-    
-    if (!label || !inputEl) {
-        return null;
+// what the user saw: the text of the chosen radio button, the names of the uploaded files
+function displayText(el, value) {
+    if (el.type === 'file') {
+        return value ? value.map(function (file) { return file[0]; }).join(', ') : undefined;
     }
-    
-    return {
-        label: label.textContent.trim(),
-        inputId: inputEl.id,
-        value: getSingleInputValue(inputEl)
-    };
-}
-
-function getRadioButtonLabel(radioButton) {
-    // Find the span with the display text next to this radio button
-    const span = radioButton.parentElement.querySelector('span');
-    if (span) {
-        return span.textContent.trim();
+    const checkedRadio = el.querySelector('input[type="radio"]:checked');
+    if (checkedRadio) {
+        const span = checkedRadio.parentElement.querySelector('span');
+        return span ? span.textContent.trim() : checkedRadio.value;
     }
-    
-    // Fallback to radio button value
-    return radioButton.value;
-}
-
-function getSingleInputValue(inputEl) {
-    const type = inputEl.type?.toLowerCase();
-    
-    switch (type) {
-        case 'checkbox':
-        case 'radio':
-            return inputEl.checked;
-        case 'file':
-            return inputEl.files;
-        case 'select-multiple':
-            return Array.from(inputEl.selectedOptions || []).map(option => option.value);
-        case 'password':
-            if(inputEl.value && inputEl.value.length > 0) {
-                return '***masked***'
-            }
-            return "";
-        default:
-            return inputEl.value;
-    }
+    return undefined;
 }

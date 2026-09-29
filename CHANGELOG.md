@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `input.json` is written (and uploaded) again once the (shiny) App finished starting, so that it also contains the settings created via `renderUI`
 - A stored upload whose file is missing (e.g. in a shared workflow, which gets the settings but not the files) is dropped before the settings are restored, instead of handing the App a path to nothing
 - A stored multi-file upload, and the uploads of two `fileInput()`s sharing one stored file name, are dropped too (shiny cannot restore them correctly)
+- `input.json` records every setting by its input id and the value shiny sends to the server, e.g. all selected options of a checkbox group and both dates of a date range (#7); radio buttons and uploads also carry the text the user saw (`valueLabel`), e.g. the names of the uploaded files
 
 ## [v1.0.3] - 2025-12-16
 
