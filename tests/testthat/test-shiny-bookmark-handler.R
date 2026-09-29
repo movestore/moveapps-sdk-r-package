@@ -51,6 +51,48 @@ test_that("saveBookmarkAsLatest returns FALSE if the bookmark does not exist", {
   expect_false(moveapps::saveBookmarkAsLatest("http://localhost:3838/?_state_id_=missing"))
 })
 
+test_that("saveBookmarkAsLatest keeps every file shiny wrote next to input.rds", {
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/abc123", recursive = TRUE)
+  saveRDS(list(upload = "0.gpkg"), "shiny_bookmarks/abc123/input.rds")
+  writeLines("gpkg", "shiny_bookmarks/abc123/0.gpkg")
+  saveRDS(list(drawn = "polygon"), "shiny_bookmarks/abc123/values.rds")
+
+  expect_true(moveapps::saveBookmarkAsLatest("http://localhost:3838/?_state_id_=abc123"))
+  # shiny's file-input handler resolves the stored basename against this directory on restore
+  expect_identical(readLines("shiny_bookmarks/latest/0.gpkg"), "gpkg")
+  expect_identical(readRDS("shiny_bookmarks/latest/values.rds"), list(drawn = "polygon"))
+  expect_identical(readRDS("shiny_bookmarks/latest/input.rds"), list(upload = "0.gpkg"))
+  expect_false(dir.exists("shiny_bookmarks/abc123"))
+})
+
+test_that("saveBookmarkAsLatest drops the files of an earlier bookmark but keeps input.json", {
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  storeFakeBookmark()
+  writeLines("old upload", "shiny_bookmarks/latest/0.gpkg")
+  dir.create("shiny_bookmarks/abc123", recursive = TRUE)
+  saveRDS(list(setting = "new"), "shiny_bookmarks/abc123/input.rds")
+
+  expect_true(moveapps::saveBookmarkAsLatest("http://localhost:3838/?_state_id_=abc123"))
+  # pushed and restored again otherwise, referenced by no input.rds
+  expect_false(file.exists("shiny_bookmarks/latest/0.gpkg"))
+  # control: latest/ is not simply emptied - input.json is written separately, after the bookmark
+  expect_true(file.exists("shiny_bookmarks/latest/input.json"))
+})
+
+test_that("saveBookmarkAsLatest keeps the stored bookmark if shiny wrote no input.rds", {
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  storeFakeBookmark()
+  dir.create("shiny_bookmarks/abc123", recursive = TRUE)
+  writeLines("gpkg", "shiny_bookmarks/abc123/0.gpkg")
+
+  expect_false(moveapps::saveBookmarkAsLatest("http://localhost:3838/?_state_id_=abc123"))
+  expect_identical(readRDS("shiny_bookmarks/latest/input.rds"), list(setting = "stored"))
+})
+
 test_that("notifyPushBookmark returns TRUE if uploading is faked", {
   old <- Sys.getenv("HTTP_CLIENT_FAKE", unset = NA)
   on.exit({ if (is.na(old)) Sys.unsetenv("HTTP_CLIENT_FAKE") else Sys.setenv(HTTP_CLIENT_FAKE = old) }, add = TRUE)

@@ -36,13 +36,12 @@ ensureBookmarkDirExists <- function() {
 #' \enumerate{
 #'   \item Extracts the `_state_id_` parameter from the provided URL
 #'   \item Creates the target "latest" bookmark directory if it doesn't exist
-#'   \item Moves the bookmark file from the temporary state directory to the latest location
+#'   \item Moves every file of the temporary state directory to the latest location: `input.rds`
+#'     and the files shiny stores next to it (uploads of a `fileInput`, `values.rds`)
+#'   \item Removes the files of an earlier bookmark which this one does not carry, except `input.json`
 #'   \item Removes the temporary state directory to clean up
 #'   \item Logs the operation for debugging purposes
 #' }
-#'
-#' The bookmark file is expected to be named "input.rds" as required by Shiny's
-#' bookmark system.
 #'
 #' @examples
 #' \dontrun{
@@ -57,14 +56,23 @@ saveBookmarkAsLatest <- function(url) {
   tryCatch(
     {
       stateId <- shiny::parseQueryString(sub("^.*\\?", "", url))$`_state_id_`
+      stateDir <- fs::path(bookmarkRootDir, stateId)
+      # every file shiny wrote belongs to the bookmark: `input.rds`, uploads (e.g. `0.gpkg`), `values.rds`
+      stateFiles <- fs::path_file(fs::dir_ls(stateDir, type = "file"))
+      if (!bookmarkFileName %in% stateFiles) {
+        stop(paste("no", bookmarkFileName, "in", stateDir))
+      }
       ensureBookmarkDirExists()
 
-      fs::file_move(
-        path = fs::path("shiny_bookmarks", stateId, bookmarkFileName),
-        new_path = bookmarkRdsTargetPath
-      )
-      fs::dir_delete(fs::path("shiny_bookmarks", stateId))
-      logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "to", bookmarkDir))
+      fs::file_move(path = fs::path(stateDir, stateFiles), new_path = fs::path(bookmarkDir, stateFiles))
+      # a file of an earlier bookmark would be pushed and restored again; `input.json` stays, the SDK
+      # writes it separately, after the bookmark
+      stale <- setdiff(fs::path_file(fs::dir_ls(bookmarkDir, type = "file")), c(stateFiles, bookmarkJsonName))
+      if (length(stale) > 0) {
+        fs::file_delete(fs::path(bookmarkDir, stale))
+      }
+      fs::dir_delete(stateDir)
+      logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "with", length(stateFiles), "file(s) to", bookmarkDir))
       invisible(TRUE)
     },
     error = function(e) {

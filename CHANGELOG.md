@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stored settings which do not fit the current input data (e.g. a track or attribute created via `renderUI` which is not part of the data anymore) are ignored: such a setting shows what shiny makes of the stored value (e.g. the first choice of a `selectInput()`, or nothing for a multiple selection, radio buttons or a checkbox group), together with the warning about not yet stored settings (new exported function `ignoreNotApplicableSettings()`)
 
 ### Changed
+- `saveBookmarkAsLatest()` keeps every file shiny stores in the bookmark (e.g. the uploads of a `fileInput()`), not only `input.rds`, and removes the files of an earlier bookmark it does not carry anymore
 - `saveBookmarkAsLatest()` and `notifyPushBookmark()` return (invisibly) whether the bookmark was saved/uploaded
 - The shiny bookmark is only uploaded if it was saved successfully
 - The WebSocket heartbeat and the JSON extraction are no longer stored in the shiny bookmark
