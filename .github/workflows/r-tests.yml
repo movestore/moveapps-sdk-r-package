@@ -50,6 +50,13 @@ jobs:
           if (!requireNamespace("httr", quietly = TRUE)) {
             renv::install("httr")
           }
+          # drives the shiny scripts in the Google Chrome of the runner
+          if (!requireNamespace("shinytest2", quietly = TRUE)) {
+            renv::install("shinytest2")
+          }
+          if (!requireNamespace("chromote", quietly = TRUE)) {
+            renv::install("chromote")
+          }
 
       - name: Run tests
         shell: Rscript {0}
