@@ -79,3 +79,81 @@ test_that("createMoveAppsShinyServer keeps the SDK's buttons and internal inputs
     expect_true(all(internal %in% session$getBookmarkExclude()))
   }, session = mock$session)
 })
+
+# MockShinySession ignores onBookmarked() and doBookmark(): register the hook and fire it from doBookmark(),
+# like shiny does once the bookmark is saved. Returns what the tests inspect.
+wireBookmarkHook <- function(session) {
+  hooks <- new.env()
+  hooks$callback <- NULL
+  hooks$queryStrings <- character()
+  session$onBookmarked <- function(fun) hooks$callback <- fun
+  session$doBookmark <- function() hooks$callback("http://localhost:3838/?_state_id_=abc123")
+  session$updateQueryString <- function(queryString, mode) hooks$queryStrings <- c(hooks$queryStrings, queryString)
+  hooks
+}
+
+# the SDK function storing the settings, handed over to onStartupFinished()
+captureStoreSettings <- function(env = parent.frame()) {
+  captured <- new.env()
+  local_mocked_bindings(
+    restoreShinyBookmark = function(session) invisible("reloading"),
+    onStartupFinished = function(session, startup, defaultsRequested, storeSettings) captured$storeSettings <- storeSettings,
+    storeResult = function(...) NULL,
+    notifyDone = function(...) NULL,
+    .package = "moveapps",
+    .env = env
+  )
+  captured
+}
+
+test_that("createMoveAppsShinyServer counts the settings as stored once the whole bookmark directory is pushed", {
+  skip_if_not_installed("shiny")
+  defineShinyModule()
+  on.exit(rm("shinyModule", envir = globalenv()), add = TRUE)
+  captured <- captureStoreSettings()
+  pushes <- new.env()
+  pushes$dir <- 0
+  pushes$single <- character()
+  local_mocked_bindings(
+    saveBookmarkAsLatest = function(url) invisible(TRUE),
+    notifyPushBookmarkDir = function() { pushes$dir <- pushes$dir + 1; invisible(TRUE) },
+    notifyPushBookmark = function(fileName) { pushes$single <- c(pushes$single, fileName); invisible(TRUE) },
+    .package = "moveapps"
+  )
+  mock <- recordingSession()
+  hooks <- wireBookmarkHook(mock$session)
+
+  shiny::testServer(moveapps::createMoveAppsShinyServer, {
+    session$flushReact()
+    session$setInputs(ma_startup_settings = list(settingIds = list("x"), changedIds = list()))
+
+    expect_true(captured$storeSettings())
+    expect_equal(pushes$dir, 1)
+    expect_length(pushes$single, 0)
+    expect_equal(hooks$queryStrings, "?_state_id_=latest")
+    expect_true("ma-settings-stored" %in% mock$messages$types)
+  }, session = mock$session)
+})
+
+test_that("createMoveAppsShinyServer does not count the settings as stored if the push fails", {
+  skip_if_not_installed("shiny")
+  defineShinyModule()
+  on.exit(rm("shinyModule", envir = globalenv()), add = TRUE)
+  captured <- captureStoreSettings()
+  local_mocked_bindings(
+    saveBookmarkAsLatest = function(url) invisible(TRUE),
+    notifyPushBookmarkDir = function() invisible(FALSE),
+    .package = "moveapps"
+  )
+  mock <- recordingSession()
+  wireBookmarkHook(mock$session)
+
+  shiny::testServer(moveapps::createMoveAppsShinyServer, {
+    session$flushReact()
+    session$setInputs(ma_startup_settings = list(settingIds = list("x"), changedIds = list()))
+
+    expect_false(captured$storeSettings())
+    expect_true("ma-settings-not-stored" %in% mock$messages$types)
+    expect_false("ma-settings-stored" %in% mock$messages$types)
+  }, session = mock$session)
+})

@@ -24,13 +24,12 @@ The function performs the following operations:
 \enumerate{
 \item Extracts the \verb{_state_id_} parameter from the provided URL
 \item Creates the target "latest" bookmark directory if it doesn't exist
-\item Moves the bookmark file from the temporary state directory to the latest location
+\item Moves every file of the temporary state directory to the latest location: \code{input.rds}
+and the files shiny stores next to it (uploads of a \code{fileInput}, \code{values.rds})
+\item Removes the files of an earlier bookmark which this one does not carry, except \code{input.json}
 \item Removes the temporary state directory to clean up
 \item Logs the operation for debugging purposes
 }
-
-The bookmark file is expected to be named "input.rds" as required by Shiny's
-bookmark system.
 }
 \examples{
 \dontrun{

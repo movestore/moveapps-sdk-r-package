@@ -51,11 +51,148 @@ test_that("saveBookmarkAsLatest returns FALSE if the bookmark does not exist", {
   expect_false(moveapps::saveBookmarkAsLatest("http://localhost:3838/?_state_id_=missing"))
 })
 
+test_that("saveBookmarkAsLatest keeps every file shiny wrote next to input.rds", {
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/abc123", recursive = TRUE)
+  saveRDS(list(upload = "0.gpkg"), "shiny_bookmarks/abc123/input.rds")
+  writeLines("gpkg", "shiny_bookmarks/abc123/0.gpkg")
+  saveRDS(list(drawn = "polygon"), "shiny_bookmarks/abc123/values.rds")
+
+  expect_true(moveapps::saveBookmarkAsLatest("http://localhost:3838/?_state_id_=abc123"))
+  # shiny's file-input handler resolves the stored basename against this directory on restore
+  expect_identical(readLines("shiny_bookmarks/latest/0.gpkg"), "gpkg")
+  expect_identical(readRDS("shiny_bookmarks/latest/values.rds"), list(drawn = "polygon"))
+  expect_identical(readRDS("shiny_bookmarks/latest/input.rds"), list(upload = "0.gpkg"))
+  expect_false(dir.exists("shiny_bookmarks/abc123"))
+})
+
+test_that("saveBookmarkAsLatest drops the files of an earlier bookmark but keeps input.json", {
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  storeFakeBookmark()
+  writeLines("old upload", "shiny_bookmarks/latest/0.gpkg")
+  dir.create("shiny_bookmarks/abc123", recursive = TRUE)
+  saveRDS(list(setting = "new"), "shiny_bookmarks/abc123/input.rds")
+
+  expect_true(moveapps::saveBookmarkAsLatest("http://localhost:3838/?_state_id_=abc123"))
+  # pushed and restored again otherwise, referenced by no input.rds
+  expect_false(file.exists("shiny_bookmarks/latest/0.gpkg"))
+  # control: latest/ is not simply emptied - input.json is written separately, after the bookmark
+  expect_true(file.exists("shiny_bookmarks/latest/input.json"))
+})
+
+test_that("saveBookmarkAsLatest keeps the stored bookmark if shiny wrote no input.rds", {
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  storeFakeBookmark()
+  dir.create("shiny_bookmarks/abc123", recursive = TRUE)
+  writeLines("gpkg", "shiny_bookmarks/abc123/0.gpkg")
+
+  expect_false(moveapps::saveBookmarkAsLatest("http://localhost:3838/?_state_id_=abc123"))
+  expect_identical(readRDS("shiny_bookmarks/latest/input.rds"), list(setting = "stored"))
+})
+
 test_that("notifyPushBookmark returns TRUE if uploading is faked", {
   old <- Sys.getenv("HTTP_CLIENT_FAKE", unset = NA)
   on.exit({ if (is.na(old)) Sys.unsetenv("HTTP_CLIENT_FAKE") else Sys.setenv(HTTP_CLIENT_FAKE = old) }, add = TRUE)
   Sys.setenv(HTTP_CLIENT_FAKE = "yes")
   expect_true(moveapps::notifyPushBookmark("input.rds"))
+})
+
+test_that("notifyPushBookmarkDir returns TRUE if uploading is faked", {
+  old <- Sys.getenv("HTTP_CLIENT_FAKE", unset = NA)
+  on.exit({ if (is.na(old)) Sys.unsetenv("HTTP_CLIENT_FAKE") else Sys.setenv(HTTP_CLIENT_FAKE = old) }, add = TRUE)
+  Sys.setenv(HTTP_CLIENT_FAKE = "yes")
+  expect_true(moveapps::notifyPushBookmarkDir())
+})
+
+# a hand-built httr response (httr::content() needs the content type and the raw body)
+pilotResponse <- function(status, body, contentType) {
+  structure(
+    list(
+      url = "http://localhost/pilot/api/v1/copilot/shiny-bookmark-dir",
+      status_code = status,
+      headers = structure(list(`content-type` = contentType), class = c("insensitive", "list")),
+      content = charToRaw(body)
+    ),
+    class = "response"
+  )
+}
+
+# answers the pilot POST with `answer()` and requires uploading not to be faked
+fakePilotAnswer <- function(answer, env = parent.frame()) {
+  old <- Sys.getenv("HTTP_CLIENT_FAKE", unset = NA)
+  withr::defer({ if (is.na(old)) Sys.unsetenv("HTTP_CLIENT_FAKE") else Sys.setenv(HTTP_CLIENT_FAKE = old) }, envir = env)
+  Sys.unsetenv("HTTP_CLIENT_FAKE")
+  local_mocked_bindings(POST = function(...) answer(), .package = "httr", .env = env)
+}
+
+test_that("notifyPushBookmarkDir returns TRUE if the pilot reports success", {
+  fakePilotAnswer(function() pilotResponse(200, '{"success":true}', "application/json"))
+  expect_true(moveapps::notifyPushBookmarkDir())
+})
+
+test_that("notifyPushBookmarkDir returns FALSE if the pilot reports a failure", {
+  fakePilotAnswer(function() pilotResponse(200, '{"success":false}', "application/json"))
+  expect_false(moveapps::notifyPushBookmarkDir())
+})
+
+test_that("notifyPushBookmarkDir returns FALSE if the pilot has no such route", {
+  fakePilotAnswer(function() pilotResponse(404, "<html>Not Found</html>", "text/html"))
+  expect_false(moveapps::notifyPushBookmarkDir())
+})
+
+test_that("notifyPushBookmarkDir returns FALSE if the pilot is unreachable", {
+  fakePilotAnswer(function() stop("Failed to connect to localhost port 8080"))
+  expect_false(moveapps::notifyPushBookmarkDir())
+})
+
+# records which pushes the bookmark hook asks for
+fakePushes <- function(saved, pushed, env = parent.frame()) {
+  calls <- new.env()
+  calls$dir <- 0
+  calls$single <- character()
+  local_mocked_bindings(
+    saveBookmarkAsLatest = function(url) invisible(saved),
+    notifyPushBookmarkDir = function() { calls$dir <- calls$dir + 1; invisible(pushed) },
+    notifyPushBookmark = function(fileName) { calls$single <- c(calls$single, fileName); invisible(TRUE) },
+    .package = "moveapps",
+    .env = env
+  )
+  calls
+}
+
+test_that("onSettingsBookmarked pushes the whole bookmark directory once it is saved", {
+  skip_if_not_installed("shiny")
+  pushes <- fakePushes(saved = TRUE, pushed = TRUE)
+  mock <- mockSession()
+
+  expect_true(moveapps:::onSettingsBookmarked("http://localhost:3838/?_state_id_=abc123", mock$session))
+  expect_equal(pushes$dir, 1)
+  # the single-file push of input.rds would leave the files next to it behind
+  expect_length(pushes$single, 0)
+  expect_equal(mock$calls$queryStrings, "?_state_id_=latest")
+  expect_equal(mock$calls$messages, "ma-settings-stored")
+})
+
+test_that("onSettingsBookmarked pushes nothing if the bookmark could not be saved", {
+  skip_if_not_installed("shiny")
+  pushes <- fakePushes(saved = FALSE, pushed = TRUE)
+  mock <- mockSession()
+
+  expect_false(moveapps:::onSettingsBookmarked("http://localhost:3838/?_state_id_=abc123", mock$session))
+  expect_equal(pushes$dir, 0)
+  expect_length(mock$calls$messages, 0)
+})
+
+test_that("onSettingsBookmarked does not report a failed push as stored", {
+  skip_if_not_installed("shiny")
+  fakePushes(saved = TRUE, pushed = FALSE)
+  mock <- mockSession()
+
+  expect_false(moveapps:::onSettingsBookmarked("http://localhost:3838/?_state_id_=abc123", mock$session))
+  expect_length(mock$calls$messages, 0)
 })
 
 test_that("restoreDefaultSettings reloads with a one-time token and keeps the stored settings until the defaults are stored", {
@@ -136,6 +273,97 @@ test_that("restoreShinyBookmark reloads with the stored settings only if they ex
   alreadyLoaded <- mockSession("?_state_id_=latest")
   expect_equal(moveapps::restoreShinyBookmark(alreadyLoaded$session), "none")
   expect_equal(alreadyLoaded$calls$reloads, 0)
+})
+
+storedUpload <- function(name, datapath) data.frame(name = name, size = 5L, type = "", datapath = datapath)
+
+test_that("restoreShinyBookmark drops a stored upload whose file is missing before it reloads", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  writeLines("there", "shiny_bookmarks/latest/1.gpkg")
+  saveRDS(
+    list(missing = storedUpload("a.gpkg", "0.gpkg"), present = storedUpload("b.gpkg", "1.gpkg"), text = "hello"),
+    "shiny_bookmarks/latest/input.rds"
+  )
+  mock <- mockSession()
+
+  expect_equal(moveapps::restoreShinyBookmark(mock$session), "reloading")
+  stored <- readRDS("shiny_bookmarks/latest/input.rds")
+  # control: an upload whose file is there and a plain value stay untouched
+  expect_named(stored, c("present", "text"))
+  expect_identical(stored$text, "hello")
+  expect_identical(stored$present$datapath, "1.gpkg")
+})
+
+test_that("restoreShinyBookmark leaves input.rds as it is if every file is there", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  writeLines("there", "shiny_bookmarks/latest/0.gpkg")
+  saveRDS(list(upload = storedUpload("a.gpkg", "0.gpkg")), "shiny_bookmarks/latest/input.rds")
+  before <- unname(tools::md5sum("shiny_bookmarks/latest/input.rds"))
+
+  moveapps::restoreShinyBookmark(mockSession()$session)
+
+  expect_identical(unname(tools::md5sum("shiny_bookmarks/latest/input.rds")), before)
+})
+
+test_that("restoreShinyBookmark drops every multi-file upload, shiny cannot restore it", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  writeLines("there", "shiny_bookmarks/latest/0.gpkg")
+  writeLines("there", "shiny_bookmarks/latest/2.gpkg")
+  writeLines("there", "shiny_bookmarks/latest/3.gpkg")
+  writeLines("there", "shiny_bookmarks/latest/4.gpkg")
+
+  partial <- data.frame(name = c("a.gpkg", "b.gpkg"), size = c(5L, 5L), type = c("", ""), datapath = c("0.gpkg", "1.gpkg"))
+  complete <- data.frame(name = c("c.gpkg", "d.gpkg"), size = c(5L, 5L), type = c("", ""), datapath = c("2.gpkg", "3.gpkg"))
+  saveRDS(
+    list(partial = partial, complete = complete, single = storedUpload("e.gpkg", "4.gpkg")),
+    "shiny_bookmarks/latest/input.rds"
+  )
+
+  mock <- mockSession()
+  expect_equal(moveapps::restoreShinyBookmark(mock$session), "reloading")
+
+  stored <- readRDS("shiny_bookmarks/latest/input.rds")
+  # partial: 1.gpkg is missing; complete: all files exist, but shiny's restore handler errors on a
+  # datapath with more than one element; single is the control and stays
+  expect_named(stored, "single")
+  expect_identical(stored$single$datapath, "4.gpkg")
+})
+
+test_that("restoreShinyBookmark drops uploads which share one stored file", {
+  skip_if_not_installed("shiny")
+  old <- setwd(newTempDir())
+  on.exit(setwd(old), add = TRUE)
+  dir.create("shiny_bookmarks/latest", recursive = TRUE)
+  # shiny names the files of each upload job 0.<ext>, 1.<ext>, ...; the bookmark copies them by
+  # name, so two fileInputs with a .gpkg each end up on one file. Which one owns it is unknowable.
+  writeLines("there", "shiny_bookmarks/latest/0.gpkg")
+  writeLines("there", "shiny_bookmarks/latest/1.gpkg")
+  saveRDS(
+    list(
+      first = storedUpload("a.gpkg", "0.gpkg"),
+      second = storedUpload("b.gpkg", "0.gpkg"),
+      other = storedUpload("c.gpkg", "1.gpkg"),
+      text = "hello"
+    ),
+    "shiny_bookmarks/latest/input.rds"
+  )
+
+  mock <- mockSession()
+  expect_equal(moveapps::restoreShinyBookmark(mock$session), "reloading")
+
+  stored <- readRDS("shiny_bookmarks/latest/input.rds")
+  expect_named(stored, c("other", "text"))
+  expect_identical(stored$other$datapath, "1.gpkg")
+  expect_identical(stored$text, "hello")
 })
 
 test_that("notApplicableSettings finds the stored settings which were not applied", {

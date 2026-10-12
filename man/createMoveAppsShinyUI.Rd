@@ -52,6 +52,7 @@ The function loads the following bundled resources:
 \itemize{
 \item \code{ws-keep-alive-fix.js}: JavaScript for WebSocket connection maintenance
 \item \code{ws-keep-alive-fix.css}: CSS styles for WebSocket fix components
+\item \code{setting-values.js}: JavaScript reading the value of a setting the way shiny sends it to the server
 \item \code{extract-inputs.js}: JavaScript for extracting input values to JSON
 \item \code{unsaved-settings-warning.js}: JavaScript for the warning about not yet stored settings
 }

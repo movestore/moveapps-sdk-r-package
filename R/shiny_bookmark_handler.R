@@ -19,6 +19,63 @@ ensureBookmarkDirExists <- function() {
   }
 }
 
+# a stored `fileInput()` value: a data frame with each file's `name`, `size`, `type` and `datapath`
+isUploadValue <- function(value) is.data.frame(value) && "datapath" %in% names(value)
+
+#' Drop Stored Uploads Shiny Cannot Restore
+#'
+#' Removes each stored \code{fileInput} value from the "latest" \code{input.rds} which shiny would
+#' restore wrongly or not at all. Three rules, checked in this order:
+#' \enumerate{
+#'   \item Multi-file upload (\code{multiple = TRUE}, more than one row): shiny's restore handler
+#'     compares the whole \code{datapath} vector in an \code{if} and errors, so the session
+#'     would die on every start.
+#'   \item A file is not in the bookmark directory, e.g. in a shared workflow (MoveApps shares the
+#'     settings, not the files). Shiny would restore an upload whose \code{datapath} points
+#'     nowhere: the App shows the file name and a complete progress bar, and reading the file
+#'     fails or silently yields nothing.
+#'   \item The \code{datapath} is also referenced by another stored upload. Shiny names the files of
+#'     each upload job \code{0.<ext>}, \code{1.<ext>} ... and the bookmark copies them by name, so
+#'     two inputs with the same extension share one file, the later one's. Which one owns it
+#'     is unknowable, so all of them are dropped.
+#' }
+#' @return Invisibly, the ids of the dropped inputs.
+#' @noRd
+dropUploadsWithoutFile <- function() {
+  inputs <- readRDS(bookmarkRdsTargetPath)
+  uploads <- Filter(isUploadValue, inputs)
+
+  multiFile <- names(Filter(function(upload) nrow(upload) > 1, uploads))
+  fileMissing <- names(Filter(function(upload) {
+    !all(fs::file_exists(fs::path(bookmarkDir, upload$datapath)))
+  }, uploads))
+  fileMissing <- setdiff(fileMissing, multiFile)
+
+  # how many stored uploads reference each file (a file counts once per upload)
+  references <- table(unlist(lapply(uploads, function(upload) unique(upload$datapath))))
+  sharedFile <- names(Filter(function(upload) {
+    any(references[as.character(upload$datapath)] > 1)
+  }, uploads))
+  sharedFile <- setdiff(sharedFile, c(multiFile, fileMissing))
+
+  reasons <- list(
+    "shiny cannot restore a multi-file upload" = multiFile,
+    "file is missing" = fileMissing,
+    "file is shared with another upload" = sharedFile
+  )
+  for (reason in names(reasons)) {
+    if (length(reasons[[reason]]) > 0) {
+      logger.info(paste0("[bookmark] Dropped stored uploads, ", reason, ": ", paste(reasons[[reason]], collapse = ", ")))
+    }
+  }
+
+  dropped <- unlist(reasons, use.names = FALSE)
+  if (length(dropped) > 0) {
+    saveRDS(inputs[!names(inputs) %in% dropped], bookmarkRdsTargetPath)
+  }
+  invisible(dropped)
+}
+
 #' Save Shiny Bookmark as Latest
 #'
 #' Moves a Shiny bookmark from its temporary location to a persistent "latest" location.
@@ -36,13 +93,12 @@ ensureBookmarkDirExists <- function() {
 #' \enumerate{
 #'   \item Extracts the `_state_id_` parameter from the provided URL
 #'   \item Creates the target "latest" bookmark directory if it doesn't exist
-#'   \item Moves the bookmark file from the temporary state directory to the latest location
+#'   \item Moves every file of the temporary state directory to the latest location: `input.rds`
+#'     and the files shiny stores next to it (uploads of a `fileInput`, `values.rds`)
+#'   \item Removes the files of an earlier bookmark which this one does not carry, except `input.json`
 #'   \item Removes the temporary state directory to clean up
 #'   \item Logs the operation for debugging purposes
 #' }
-#'
-#' The bookmark file is expected to be named "input.rds" as required by Shiny's
-#' bookmark system.
 #'
 #' @examples
 #' \dontrun{
@@ -57,14 +113,23 @@ saveBookmarkAsLatest <- function(url) {
   tryCatch(
     {
       stateId <- shiny::parseQueryString(sub("^.*\\?", "", url))$`_state_id_`
+      stateDir <- fs::path(bookmarkRootDir, stateId)
+      # every file shiny wrote belongs to the bookmark: `input.rds`, uploads (e.g. `0.gpkg`), `values.rds`
+      stateFiles <- fs::path_file(fs::dir_ls(stateDir, type = "file"))
+      if (!bookmarkFileName %in% stateFiles) {
+        stop(paste("no", bookmarkFileName, "in", stateDir))
+      }
       ensureBookmarkDirExists()
 
-      fs::file_move(
-        path = fs::path("shiny_bookmarks", stateId, bookmarkFileName),
-        new_path = bookmarkRdsTargetPath
-      )
-      fs::dir_delete(fs::path("shiny_bookmarks", stateId))
-      logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "to", bookmarkDir))
+      fs::file_move(path = fs::path(stateDir, stateFiles), new_path = fs::path(bookmarkDir, stateFiles))
+      # a file of an earlier bookmark would be pushed and restored again; `input.json` stays, the SDK
+      # writes it separately, after the bookmark
+      stale <- setdiff(fs::path_file(fs::dir_ls(bookmarkDir, type = "file")), c(stateFiles, bookmarkJsonName))
+      if (length(stale) > 0) {
+        fs::file_delete(fs::path(bookmarkDir, stale))
+      }
+      fs::dir_delete(stateDir)
+      logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "with", length(stateFiles), "file(s) to", bookmarkDir))
       invisible(TRUE)
     },
     error = function(e) {
@@ -133,6 +198,8 @@ restoreShinyBookmark <- function(session) {
         logger.warn("[bookmark] Ignored a request for the default settings with an unknown token")
       }
       if(fs::file_exists(bookmarkRdsTargetPath) && is.null(queryString$`_state_id_`)) {
+        # the only way into a restore: hubble embeds the App without `_state_id_`
+        dropUploadsWithoutFile()
         shiny::updateQueryString(queryString = "?_state_id_=latest", session = session)
         logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
         session$reload()
@@ -209,14 +276,13 @@ restoreDefaultSettings <- function(session) {
 #' @return Character vector of the ids of the settings whose stored value was not applied.
 #' @noRd
 notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
-  isUpload <- function(value) is.data.frame(value) && "datapath" %in% names(value)
   withoutDatapath <- function(value) {
-    if (isUpload(value)) value[setdiff(names(value), "datapath")] else value
+    if (isUploadValue(value)) value[setdiff(names(value), "datapath")] else value
   }
   applied <- function(stored, current) {
     is.null(stored) ||
       isTRUE(all.equal(withoutDatapath(stored), withoutDatapath(current), check.attributes = FALSE)) &&
-        (!isUpload(current) || all(file.exists(current$datapath)))
+        (!isUploadValue(current) || all(file.exists(current$datapath)))
   }
 
   ids <- intersect(settingIds, names(storedInputs))

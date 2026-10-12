@@ -2,7 +2,7 @@ name: R Unit Tests
 
 on:
   push:
-    branches: ['*']
+    branches: ['**']
 
 jobs:
   test:
@@ -40,11 +40,22 @@ jobs:
           if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv")
           renv::restore()
 
-      - name: Install devtools
+      - name: Install test dependencies
         shell: Rscript {0}
         run: |
           if (!requireNamespace("devtools", quietly = TRUE)) {
             renv::install("devtools")
+          }
+          # the tests fake `httr::POST`, which needs the httr namespace
+          if (!requireNamespace("httr", quietly = TRUE)) {
+            renv::install("httr")
+          }
+          # drives the shiny scripts in the Google Chrome of the runner
+          if (!requireNamespace("shinytest2", quietly = TRUE)) {
+            renv::install("shinytest2")
+          }
+          if (!requireNamespace("chromote", quietly = TRUE)) {
+            renv::install("chromote")
           }
 
       - name: Run tests

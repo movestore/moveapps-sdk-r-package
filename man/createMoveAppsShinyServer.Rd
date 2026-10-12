@@ -106,5 +106,5 @@ shinyApp(ui = ui, server = server, enableBookmarking = "server")
 \code{\link{storeResult}} for result storage,
 \code{\link{restoreShinyBookmark}}, \code{\link{restoreDefaultSettings}}, \code{\link{ignoreNotApplicableSettings}}, \code{\link{saveBookmarkAsLatest}}, \code{\link{saveInputAsJson}} for bookmark management,
 \code{\link{storeToFile}} for error logging,
-\code{\link{notifyDone}}, \code{\link{notifyPushBookmark}} for external notifications
+\code{\link{notifyDone}}, \code{\link{notifyPushBookmark}}, \code{\link{notifyPushBookmarkDir}} for external notifications
 }
