@@ -5,6 +5,25 @@ All notable changes to the MoveApps R SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.0] - 2026-09-30
+
+### Added
+- "Restore default settings" (shiny) button next to the "Store settings" button, which (after confirmation) reloads this App with its default settings and stores these, replacing the stored settings (new exported function `restoreDefaultSettings()`)
+- Warning next to the "Store settings" (shiny) button while changed settings are not stored yet, or storing them failed
+- Stored settings which do not fit the current input data (e.g. a track or attribute created via `renderUI` which is not part of the data anymore) are ignored: such a setting shows what shiny makes of the stored value (e.g. the first choice of a `selectInput()`, or nothing for a multiple selection, radio buttons or a checkbox group), together with the warning about not yet stored settings (new exported function `ignoreNotApplicableSettings()`)
+- `notifyPushBookmarkDir()`: pushes the whole shiny bookmark (`input.rds`, `input.json` and the files stored next to them) to MoveApps
+
+### Changed
+- `saveBookmarkAsLatest()` keeps every file shiny stores in the bookmark (e.g. the uploads of a `fileInput()`), not only `input.rds`, and removes the files of an earlier bookmark it does not carry anymore
+- `saveBookmarkAsLatest()` and `notifyPushBookmark()` return (invisibly) whether the bookmark was saved/uploaded
+- The shiny bookmark is only uploaded if it was saved successfully
+- "Store settings" (shiny) pushes the whole bookmark instead of `input.rds` only, so the uploads of a `fileInput()` are available in future runs of the workflow (needs the pilot route `/copilot/shiny-bookmark-dir`)
+- The WebSocket heartbeat and the JSON extraction are no longer stored in the shiny bookmark
+- `input.json` is written (and uploaded) again once the (shiny) App finished starting, so that it also contains the settings created via `renderUI`
+- A stored upload whose file is missing (e.g. in a shared workflow, which gets the settings but not the files) is dropped before the settings are restored, instead of handing the App a path to nothing
+- A stored multi-file upload, and the uploads of two `fileInput()`s sharing one stored file name, are dropped too (shiny cannot restore them correctly)
+- `input.json` records every setting by its input id and the value shiny sends to the server, e.g. all selected options of a checkbox group and both dates of a date range (#7); radio buttons and uploads also carry the text the user saw (`valueLabel`), e.g. the names of the uploaded files; an empty setting (e.g. an upload not made yet) is recorded as `""`, and a checkbox keeps its label
+
 ## [v1.0.3] - 2025-12-16
 
 ### Changed

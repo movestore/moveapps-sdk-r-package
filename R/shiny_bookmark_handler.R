@@ -6,12 +6,74 @@ bookmarkRdsTargetPath <- fs::path(bookmarkDir, bookmarkFileName)
 # `input.json` is a custom file-name and a custom file-content to access the shiny values in plain text
 bookmarkJsonName <- "input.json"
 bookmarkJsonTargetPath <- fs::path(bookmarkDir, bookmarkJsonName)
+# query parameter marking a session reload that should start with the default settings of this App
+restoreDefaultsQueryParam <- "_ma_defaults_"
+# one-time tokens (as names) of requested reloads with the default settings; a URL with an unknown
+# token (e.g. an old or copied URL) must not replace the stored settings
+restoreDefaultsTokens <- new.env(parent = emptyenv())
 
 ensureBookmarkDirExists <- function() {
   if(!fs::dir_exists(bookmarkDir)){
     fs::dir_create(bookmarkDir)
     logger.debug(paste("[bookmark] Created shiny bookmark directory", bookmarkDir))
   }
+}
+
+# a stored `fileInput()` value: a data frame with each file's `name`, `size`, `type` and `datapath`
+isUploadValue <- function(value) is.data.frame(value) && "datapath" %in% names(value)
+
+#' Drop Stored Uploads Shiny Cannot Restore
+#'
+#' Removes each stored \code{fileInput} value from the "latest" \code{input.rds} which shiny would
+#' restore wrongly or not at all. Three rules, checked in this order:
+#' \enumerate{
+#'   \item Multi-file upload (\code{multiple = TRUE}, more than one row): shiny's restore handler
+#'     compares the whole \code{datapath} vector in an \code{if} and errors, so the session
+#'     would die on every start.
+#'   \item A file is not in the bookmark directory, e.g. in a shared workflow (MoveApps shares the
+#'     settings, not the files). Shiny would restore an upload whose \code{datapath} points
+#'     nowhere: the App shows the file name and a complete progress bar, and reading the file
+#'     fails or silently yields nothing.
+#'   \item The \code{datapath} is also referenced by another stored upload. Shiny names the files of
+#'     each upload job \code{0.<ext>}, \code{1.<ext>} ... and the bookmark copies them by name, so
+#'     two inputs with the same extension share one file, the later one's. Which one owns it
+#'     is unknowable, so all of them are dropped.
+#' }
+#' @return Invisibly, the ids of the dropped inputs.
+#' @noRd
+dropUploadsWithoutFile <- function() {
+  inputs <- readRDS(bookmarkRdsTargetPath)
+  uploads <- Filter(isUploadValue, inputs)
+
+  multiFile <- names(Filter(function(upload) nrow(upload) > 1, uploads))
+  fileMissing <- names(Filter(function(upload) {
+    !all(fs::file_exists(fs::path(bookmarkDir, upload$datapath)))
+  }, uploads))
+  fileMissing <- setdiff(fileMissing, multiFile)
+
+  # how many stored uploads reference each file (a file counts once per upload)
+  references <- table(unlist(lapply(uploads, function(upload) unique(upload$datapath))))
+  sharedFile <- names(Filter(function(upload) {
+    any(references[as.character(upload$datapath)] > 1)
+  }, uploads))
+  sharedFile <- setdiff(sharedFile, c(multiFile, fileMissing))
+
+  reasons <- list(
+    "shiny cannot restore a multi-file upload" = multiFile,
+    "file is missing" = fileMissing,
+    "file is shared with another upload" = sharedFile
+  )
+  for (reason in names(reasons)) {
+    if (length(reasons[[reason]]) > 0) {
+      logger.info(paste0("[bookmark] Dropped stored uploads, ", reason, ": ", paste(reasons[[reason]], collapse = ", ")))
+    }
+  }
+
+  dropped <- unlist(reasons, use.names = FALSE)
+  if (length(dropped) > 0) {
+    saveRDS(inputs[!names(inputs) %in% dropped], bookmarkRdsTargetPath)
+  }
+  invisible(dropped)
 }
 
 #' Save Shiny Bookmark as Latest
@@ -23,20 +85,20 @@ ensureBookmarkDirExists <- function() {
 #' @param url Character string. The bookmark URL containing the state ID parameter.
 #'   Expected to contain a `_state_id_` query parameter.
 #'
-#' @return No return value, called for side effects (file operations and logging).
+#' @return Invisibly \code{TRUE} if the bookmark was saved, otherwise invisibly
+#'   \code{FALSE}. Called mainly for side effects (file operations and logging).
 #'
 #' @details
 #' The function performs the following operations:
 #' \enumerate{
 #'   \item Extracts the `_state_id_` parameter from the provided URL
 #'   \item Creates the target "latest" bookmark directory if it doesn't exist
-#'   \item Moves the bookmark file from the temporary state directory to the latest location
+#'   \item Moves every file of the temporary state directory to the latest location: `input.rds`
+#'     and the files shiny stores next to it (uploads of a `fileInput`, `values.rds`)
+#'   \item Removes the files of an earlier bookmark which this one does not carry, except `input.json`
 #'   \item Removes the temporary state directory to clean up
 #'   \item Logs the operation for debugging purposes
 #' }
-#'
-#' The bookmark file is expected to be named "input.rds" as required by Shiny's
-#' bookmark system.
 #'
 #' @examples
 #' \dontrun{
@@ -51,17 +113,28 @@ saveBookmarkAsLatest <- function(url) {
   tryCatch(
     {
       stateId <- shiny::parseQueryString(sub("^.*\\?", "", url))$`_state_id_`
+      stateDir <- fs::path(bookmarkRootDir, stateId)
+      # every file shiny wrote belongs to the bookmark: `input.rds`, uploads (e.g. `0.gpkg`), `values.rds`
+      stateFiles <- fs::path_file(fs::dir_ls(stateDir, type = "file"))
+      if (!bookmarkFileName %in% stateFiles) {
+        stop(paste("no", bookmarkFileName, "in", stateDir))
+      }
       ensureBookmarkDirExists()
 
-      fs::file_move(
-        path = fs::path("shiny_bookmarks", stateId, bookmarkFileName),
-        new_path = bookmarkRdsTargetPath
-      )
-      fs::dir_delete(fs::path("shiny_bookmarks", stateId))
-      logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "to", bookmarkDir))
+      fs::file_move(path = fs::path(stateDir, stateFiles), new_path = fs::path(bookmarkDir, stateFiles))
+      # a file of an earlier bookmark would be pushed and restored again; `input.json` stays, the SDK
+      # writes it separately, after the bookmark
+      stale <- setdiff(fs::path_file(fs::dir_ls(bookmarkDir, type = "file")), c(stateFiles, bookmarkJsonName))
+      if (length(stale) > 0) {
+        fs::file_delete(fs::path(bookmarkDir, stale))
+      }
+      fs::dir_delete(stateDir)
+      logger.debug(paste("[bookmark] Moved shiny bookmark", stateId, "with", length(stateFiles), "file(s) to", bookmarkDir))
+      invisible(TRUE)
     },
     error = function(e) {
       logger.error(paste("[bookmark] Could not save the shiny bookmark as latest:", e))
+      invisible(FALSE)
     }
   )
 }
@@ -74,11 +147,17 @@ saveBookmarkAsLatest <- function(url) {
 #'
 #' @param session A Shiny session object, typically provided by the Shiny server function.
 #'
-#' @return No return value, called for side effects (session reload and logging).
+#' @return Invisibly, how this session starts: \code{"defaults"} if default settings were
+#'   requested via \code{\link{restoreDefaultSettings}} (no bookmark is restored then),
+#'   \code{"reloading"} if the session is reloaded to restore the stored settings, otherwise
+#'   \code{"none"}. Called mainly for side effects (session reload and logging).
 #'
 #' @details
 #' The function performs the following checks and operations:
 #' \enumerate{
+#'   \item Skips the restore if default settings were requested via
+#'     \code{\link{restoreDefaultSettings}} (and removes that request from the URL).
+#'     A request with an unknown token (e.g. from an old or copied URL) is ignored.
 #'   \item Checks if a bookmark file exists in the "latest" location
 #'   \item Verifies that no state ID is currently present in the session URL
 #'   \item If both conditions are met, updates the query string to load the "latest" bookmark
@@ -105,16 +184,196 @@ saveBookmarkAsLatest <- function(url) {
 restoreShinyBookmark <- function(session) {
   tryCatch(
     {
-      if(fs::file_exists(bookmarkRdsTargetPath) && is.null(shiny::parseQueryString(session$clientData$url_search)$`_state_id_`)) {
-        shiny::updateQueryString(queryString = "?_state_id_=latest")
+      queryString <- shiny::getQueryString(session)
+      defaultsToken <- queryString[[restoreDefaultsQueryParam]]
+      if (!is.null(defaultsToken)) {
+        # drop the marker, so that a later reload restores the stored settings again
+        shiny::updateQueryString(queryString = "?", mode = "replace", session = session)
+        if (exists(defaultsToken, envir = restoreDefaultsTokens, inherits = FALSE)) {
+          # the user asked for the default settings: do not restore any bookmark
+          rm(list = defaultsToken, envir = restoreDefaultsTokens)
+          logger.debug("[bookmark] Skipped restoring the shiny bookmark b/c default settings were requested")
+          return(invisible("defaults"))
+        }
+        logger.warn("[bookmark] Ignored a request for the default settings with an unknown token")
+      }
+      if(fs::file_exists(bookmarkRdsTargetPath) && is.null(queryString$`_state_id_`)) {
+        # the only way into a restore: hubble embeds the App without `_state_id_`
+        dropUploadsWithoutFile()
+        shiny::updateQueryString(queryString = "?_state_id_=latest", session = session)
         logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
         session$reload()
+        return(invisible("reloading"))
       }
     },
     error = function(e) {
       logger.error(paste("[bookmark] Could not restore the shiny bookmark:", e))
     }
   )
+  invisible("none")
+}
+
+#' Restore Default Settings
+#'
+#' Reloads the Shiny session without restoring any bookmark, so that all inputs show the
+#' default values defined by this App in \code{shinyModuleUserInterface}. These default
+#' settings then replace the stored settings.
+#'
+#' @param session A Shiny session object, typically provided by the Shiny server function.
+#'
+#' @return No return value, called for side effects (session reload and logging).
+#'
+#' @details
+#' The function reloads the session with a marker in the query string. The marker
+#' carries a one-time random token and tells \code{\link{restoreShinyBookmark}} to skip
+#' the automatic restore. \code{\link{createMoveAppsShinyServer}} then stores the default
+#' settings, which replaces the stored settings (\code{input.rds} and \code{input.json}
+#' of the "latest" bookmark), also on MoveApps. The stored settings are not deleted
+#' beforehand: if storing the defaults fails, they stay in sync with the copy on MoveApps.
+#'
+#' @examples
+#' \dontrun{
+#' # In a Shiny server function
+#' observeEvent(input$ma_restore_defaults, {
+#'   restoreDefaultSettings(session)
+#' })
+#' }
+#'
+#' @seealso \code{\link{restoreShinyBookmark}} for restoring bookmarks
+#' @export
+restoreDefaultSettings <- function(session) {
+  tryCatch(
+    {
+      # `tempfile()` creates a random name without changing the random number generator state of this App
+      defaultsToken <- basename(tempfile(pattern = ""))
+      assign(defaultsToken, TRUE, envir = restoreDefaultsTokens)
+      shiny::updateQueryString(queryString = paste0("?", restoreDefaultsQueryParam, "=", defaultsToken), mode = "replace", session = session)
+      logger.debug("[bookmark] Reloading session to restore the default settings of this App")
+      session$reload()
+    },
+    error = function(e) {
+      logger.error(paste("[bookmark] Could not restore the default settings:", e))
+    }
+  )
+}
+
+#' Find Stored Settings Which Could Not Be Applied
+#'
+#' Compares the stored value of each setting with the value shown after restoring it.
+#' A difference means that the stored value could not be applied, e.g. because the
+#' choices created via \code{renderUI} from the input data do not contain it anymore.
+#' An upload (\code{fileInput}) is compared without its \code{datapath}: shiny copies a
+#' restored upload to a new temporary path (e.g. \code{0.gpkg} to \code{/tmp/Rtmp.../0.gpkg}).
+#' It only counts as applied if that file exists: shiny's copy fails silently if the bookmark
+#' did not keep the file, and still hands the App the path. A setting stored with nothing
+#' selected (\code{NULL}) fits any data: shiny's \code{radioButtons} shows its first choice
+#' for it, which would otherwise count as not applied on every run.
+#'
+#' @param storedInputs Named list of the stored input values (content of \code{input.rds}).
+#' @param currentInputs Named list of the current input values.
+#' @param settingIds Character vector of the ids of the settings shown in the UI.
+#'
+#' @return Character vector of the ids of the settings whose stored value was not applied.
+#' @noRd
+notApplicableSettings <- function(storedInputs, currentInputs, settingIds) {
+  withoutDatapath <- function(value) {
+    if (isUploadValue(value)) value[setdiff(names(value), "datapath")] else value
+  }
+  applied <- function(stored, current) {
+    is.null(stored) ||
+      isTRUE(all.equal(withoutDatapath(stored), withoutDatapath(current), check.attributes = FALSE)) &&
+        (!isUploadValue(current) || all(file.exists(current$datapath)))
+  }
+
+  ids <- intersect(settingIds, names(storedInputs))
+  Filter(function(id) !applied(storedInputs[[id]], currentInputs[[id]]), ids)
+}
+
+#' Ignore Stored Settings Which Do Not Fit the Input Data
+#'
+#' Checks, after the stored settings were restored, whether each of them could be applied.
+#' A setting whose stored value is not available anymore (e.g. a track or attribute which is
+#' not part of the current input data) keeps what shiny shows instead, e.g. the first choice
+#' of a \code{selectInput}, or nothing for a multiple selection, radio buttons or a checkbox
+#' group. The warning about not yet stored settings is shown, and the stored settings stay
+#' untouched until "Store settings" is clicked. Settings the user already changed are left out.
+#'
+#' @param session A Shiny session object, typically provided by the Shiny server function.
+#' @param settingIds Character vector of the ids of the settings shown in the UI (reported by
+#'   the browser once this App finished starting).
+#' @param changedIds Character vector of the ids of the settings the user already changed
+#'   (reported by the browser together with \code{settingIds}).
+#'
+#' @return Invisibly, the ids of the stored settings which do not fit the input data (empty if
+#'   all fit, or if the stored settings were not restored).
+#'
+#' @details
+#' The check only runs for a session which restored the stored settings (state id "latest").
+#' A setting counts as not fitting if the value shown differs from the stored value in any
+#' way, also if only parts of a stored selection are available anymore.
+#'
+#' @examples
+#' \dontrun{
+#' # In a Shiny server function
+#' observeEvent(input$ma_startup_settings, {
+#'   startup <- input$ma_startup_settings
+#'   ignoreNotApplicableSettings(session, unlist(startup$settingIds), unlist(startup$changedIds))
+#' })
+#' }
+#'
+#' @seealso \code{\link{restoreShinyBookmark}} for restoring bookmarks
+#' @export
+ignoreNotApplicableSettings <- function(session, settingIds, changedIds = character()) {
+  tryCatch(
+    {
+      stateId <- shiny::getQueryString(session)$`_state_id_`
+      if (!identical(stateId, "latest") || !fs::file_exists(bookmarkRdsTargetPath)) {
+        return(invisible(character()))
+      }
+      storedInputs <- readRDS(bookmarkRdsTargetPath)
+      currentInputs <- shiny::isolate(lapply(settingIds, function(id) session$input[[id]]))
+      names(currentInputs) <- settingIds
+      ids <- notApplicableSettings(storedInputs, currentInputs, setdiff(settingIds, changedIds))
+      if (length(ids) > 0) {
+        logger.info(paste("[bookmark] Stored settings which do not fit the input data are ignored:", paste(ids, collapse = ", ")))
+        session$sendCustomMessage("ma-settings-not-stored", list())
+      }
+      invisible(ids)
+    },
+    error = function(e) {
+      logger.error(paste("[bookmark] Could not check whether the stored settings fit the input data:", e))
+      invisible(character())
+    }
+  )
+}
+
+#' Finish Starting This App
+#'
+#' Runs once the browser reports that this App finished starting: all settings are shown,
+#' also the ones created via \code{renderUI}, and the App's own updates are applied.
+#' Requested default settings are stored only now, so that they are complete. Otherwise,
+#' stored settings which do not fit the input data are ignored.
+#'
+#' @param session A Shiny session object.
+#' @param startup The report of the browser (\code{settingIds}, \code{changedIds}).
+#' @param defaultsRequested \code{TRUE} if this session started with the default settings
+#'   requested via \code{\link{restoreDefaultSettings}}.
+#' @param storeSettings Function storing the current settings (also writes \code{input.json});
+#'   returns whether this succeeded.
+#' @noRd
+onStartupFinished <- function(session, startup, defaultsRequested, storeSettings) {
+  if (defaultsRequested) {
+    # the default settings replace the stored settings (also on MoveApps); `input.json` documents
+    # them also if storing failed
+    if (!storeSettings()) {
+      session$sendCustomMessage("extract-shiny-input", list())
+    }
+    return(invisible())
+  }
+
+  ignoreNotApplicableSettings(session, unlist(startup$settingIds), unlist(startup$changedIds))
+  # write `input.json` again: now it also contains the settings created via `renderUI`
+  session$sendCustomMessage("extract-shiny-input", list())
 }
 
 #' Save Shiny Input as JSON

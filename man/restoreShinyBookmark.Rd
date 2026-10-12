@@ -10,7 +10,10 @@ restoreShinyBookmark(session)
 \item{session}{A Shiny session object, typically provided by the Shiny server function.}
 }
 \value{
-No return value, called for side effects (session reload and logging).
+Invisibly, how this session starts: \code{"defaults"} if default settings were
+requested via \code{\link{restoreDefaultSettings}} (no bookmark is restored then),
+\code{"reloading"} if the session is reloaded to restore the stored settings, otherwise
+\code{"none"}. Called mainly for side effects (session reload and logging).
 }
 \description{
 Automatically restores the latest Shiny bookmark if one exists and hasn't been
@@ -20,6 +23,9 @@ with the appropriate state ID to restore the application state.
 \details{
 The function performs the following checks and operations:
 \enumerate{
+\item Skips the restore if default settings were requested via
+\code{\link{restoreDefaultSettings}} (and removes that request from the URL).
+A request with an unknown token (e.g. from an old or copied URL) is ignored.
 \item Checks if a bookmark file exists in the "latest" location
 \item Verifies that no state ID is currently present in the session URL
 \item If both conditions are met, updates the query string to load the "latest" bookmark
