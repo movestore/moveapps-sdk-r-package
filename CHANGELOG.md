@@ -5,7 +5,7 @@ All notable changes to the MoveApps R SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.1.0] - 2026-09-30
 
 ### Added
 - "Restore default settings" (shiny) button next to the "Store settings" button, which (after confirmation) reloads this App with its default settings and stores these, replacing the stored settings (new exported function `restoreDefaultSettings()`)
@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `input.json` is written (and uploaded) again once the (shiny) App finished starting, so that it also contains the settings created via `renderUI`
 - A stored upload whose file is missing (e.g. in a shared workflow, which gets the settings but not the files) is dropped before the settings are restored, instead of handing the App a path to nothing
 - A stored multi-file upload, and the uploads of two `fileInput()`s sharing one stored file name, are dropped too (shiny cannot restore them correctly)
+- `input.json` records every setting by its input id and the value shiny sends to the server, e.g. all selected options of a checkbox group and both dates of a date range (#7); radio buttons and uploads also carry the text the user saw (`valueLabel`), e.g. the names of the uploaded files; an empty setting (e.g. an upload not made yet) is recorded as `""`, and a checkbox keeps its label
 
 ## [v1.0.3] - 2025-12-16
 

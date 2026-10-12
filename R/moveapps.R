@@ -125,6 +125,7 @@ runMoveAppsApp <- function() {
 #' \itemize{
 #'   \item \code{ws-keep-alive-fix.js}: JavaScript for WebSocket connection maintenance
 #'   \item \code{ws-keep-alive-fix.css}: CSS styles for WebSocket fix components
+#'   \item \code{setting-values.js}: JavaScript reading the value of a setting the way shiny sends it to the server
 #'   \item \code{extract-inputs.js}: JavaScript for extracting input values to JSON
 #'   \item \code{unsaved-settings-warning.js}: JavaScript for the warning about not yet stored settings
 #' }
@@ -158,6 +159,7 @@ createMoveAppsShinyUI <- function(request) {
     # kudos: https://shiny.posit.co/r/articles/build/packaging-javascript/
     includeScript(system.file("shiny-apps/www/ws-keep-alive-fix.js", package = "moveapps")),
     includeCSS(system.file("shiny-apps/www/ws-keep-alive-fix.css", package = "moveapps")),
+    includeScript(system.file("shiny-apps/www/setting-values.js", package = "moveapps")),
     includeScript(system.file("shiny-apps/www/extract-inputs.js", package = "moveapps")),
     includeScript(system.file("shiny-apps/www/unsaved-settings-warning.js", package = "moveapps")),
     
