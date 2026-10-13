@@ -162,6 +162,7 @@ createMoveAppsShinyUI <- function(request) {
     includeScript(system.file("shiny-apps/www/setting-values.js", package = "moveapps")),
     includeScript(system.file("shiny-apps/www/extract-inputs.js", package = "moveapps")),
     includeScript(system.file("shiny-apps/www/unsaved-settings-warning.js", package = "moveapps")),
+    includeScript(system.file("shiny-apps/www/reload-page.js", package = "moveapps")),
     
     # ws-heartbeat fix
     # kudos: https://github.com/rstudio/shiny/issues/2110#issuecomment-419971302

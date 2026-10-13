@@ -5,6 +5,11 @@ All notable changes to the MoveApps R SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- In Firefox, restoring the stored settings and "Restore default settings" (shiny) showed the settings of the page before instead: Firefox fills a reloaded page with its former inputs. The SDK now loads the page anew instead of reloading it, e.g. a stored "min" no longer turns into the default "h", and "Restore default settings" no longer stores the old setting as the default
+
 ## [v1.1.0] - 2026-09-30
 
 ### Added
