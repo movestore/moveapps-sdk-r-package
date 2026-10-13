@@ -1,18 +1,22 @@
-# minimal stand-in for a shiny session, recording query string updates, reloads and custom messages
+# minimal stand-in for a shiny session, recording query string updates and custom messages
 mockSession <- function(urlSearch = "", input = list()) {
   calls <- new.env()
   calls$queryStrings <- character()
-  calls$reloads <- 0
   calls$messages <- character()
   session <- list(
     clientData = list(url_search = urlSearch),
     input = input,
     updateQueryString = function(queryString, mode) calls$queryStrings <- c(calls$queryStrings, queryString),
-    reload = function() calls$reloads <- calls$reloads + 1,
+    # Firefox fills a reloaded page with the inputs of the page before (e.g. a default instead of the
+    # restored setting)
+    reload = function() stop("session$reload() lets Firefox overwrite the restored settings"),
     sendCustomMessage = function(type, message) calls$messages <- c(calls$messages, type)
   )
   list(session = session, calls = calls)
 }
+
+# how often the SDK asked the browser to load this page again
+pageReloads <- function(mock) sum(mock$calls$messages == "ma-reload")
 
 # stand-in for storing the settings (bookmark and upload), counting its calls
 fakeStoreSettings <- function(succeeds) {
@@ -207,7 +211,7 @@ test_that("restoreDefaultSettings reloads with a one-time token and keeps the st
   # MoveApps keeps its copy until the defaults are stored: deleting the local one would get out of sync
   expect_true(file.exists("shiny_bookmarks/latest/input.rds"))
   expect_true(file.exists("shiny_bookmarks/latest/input.json"))
-  expect_equal(mock$calls$reloads, 1)
+  expect_equal(pageReloads(mock), 1)
   expect_length(mock$calls$queryStrings, 1)
   expect_match(mock$calls$queryStrings, "^\\?_ma_defaults_=.+")
 })
@@ -220,7 +224,7 @@ test_that("restoreDefaultSettings works without stored settings", {
 
   moveapps::restoreDefaultSettings(mock$session)
 
-  expect_equal(mock$calls$reloads, 1)
+  expect_equal(pageReloads(mock), 1)
 })
 
 test_that("restoreShinyBookmark skips the restore once for a requested reload with the default settings", {
@@ -234,12 +238,12 @@ test_that("restoreShinyBookmark skips the restore once for a requested reload wi
   reloaded <- mockSession(request$calls$queryStrings)
   expect_equal(moveapps::restoreShinyBookmark(reloaded$session), "defaults")
   expect_equal(reloaded$calls$queryStrings, "?")
-  expect_equal(reloaded$calls$reloads, 0)
+  expect_equal(pageReloads(reloaded), 0)
 
   # the token can only be used once: the same URL restores the stored settings
   again <- mockSession(request$calls$queryStrings)
   expect_equal(moveapps::restoreShinyBookmark(again$session), "reloading")
-  expect_equal(again$calls$reloads, 1)
+  expect_equal(pageReloads(again), 1)
 })
 
 test_that("restoreShinyBookmark ignores a request for the default settings with an unknown token", {
@@ -251,7 +255,7 @@ test_that("restoreShinyBookmark ignores a request for the default settings with 
 
   expect_equal(moveapps::restoreShinyBookmark(mock$session), "reloading")
   expect_equal(mock$calls$queryStrings, c("?", "?_state_id_=latest"))
-  expect_equal(mock$calls$reloads, 1)
+  expect_equal(pageReloads(mock), 1)
   expect_true(file.exists("shiny_bookmarks/latest/input.rds"))
 })
 
@@ -262,17 +266,17 @@ test_that("restoreShinyBookmark reloads with the stored settings only if they ex
 
   nothingStored <- mockSession()
   expect_equal(moveapps::restoreShinyBookmark(nothingStored$session), "none")
-  expect_equal(nothingStored$calls$reloads, 0)
+  expect_equal(pageReloads(nothingStored), 0)
 
   storeFakeBookmark()
   notLoaded <- mockSession()
   expect_equal(moveapps::restoreShinyBookmark(notLoaded$session), "reloading")
   expect_equal(notLoaded$calls$queryStrings, "?_state_id_=latest")
-  expect_equal(notLoaded$calls$reloads, 1)
+  expect_equal(pageReloads(notLoaded), 1)
 
   alreadyLoaded <- mockSession("?_state_id_=latest")
   expect_equal(moveapps::restoreShinyBookmark(alreadyLoaded$session), "none")
-  expect_equal(alreadyLoaded$calls$reloads, 0)
+  expect_equal(pageReloads(alreadyLoaded), 0)
 })
 
 storedUpload <- function(name, datapath) data.frame(name = name, size = 5L, type = "", datapath = datapath)
@@ -419,7 +423,7 @@ test_that("ignoreNotApplicableSettings shows the warning and keeps the session w
 
   expect_equal(moveapps::ignoreNotApplicableSettings(mock$session, c("animal", "speed", "width")), "animal")
   # no reload and no copy of the stored settings: they stay untouched until the user stores again
-  expect_equal(mock$calls$reloads, 0)
+  expect_equal(pageReloads(mock), 0)
   expect_equal(mock$calls$messages, "ma-settings-not-stored")
   expect_identical(readRDS("shiny_bookmarks/latest/input.rds"), stored)
   expect_equal(list.files("shiny_bookmarks"), "latest")
@@ -480,7 +484,7 @@ test_that("onStartupFinished leaves out the settings the user changed during the
   startup <- list(settingIds = list("animal"), changedIds = list("animal"))
   moveapps:::onStartupFinished(mock$session, startup, defaultsRequested = FALSE, storeSettings = store$fn)
 
-  expect_equal(mock$calls$reloads, 0)
+  expect_equal(pageReloads(mock), 0)
   expect_equal(mock$calls$messages, "extract-shiny-input")
 })
 
@@ -536,6 +540,6 @@ test_that("onStartupFinished shows the warning for stored settings which do not 
   moveapps:::onStartupFinished(mock$session, list(settingIds = list("animal")), defaultsRequested = FALSE, storeSettings = store$fn)
 
   # `input.json` documents the shown settings, which this App uses
-  expect_equal(mock$calls$reloads, 0)
+  expect_equal(pageReloads(mock), 0)
   expect_equal(mock$calls$messages, c("ma-settings-not-stored", "extract-shiny-input"))
 })
