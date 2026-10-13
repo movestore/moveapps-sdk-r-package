@@ -6,6 +6,11 @@
 #' This function is the primary entry point for running MoveApps applications
 #' in a production environment.
 #'
+#' @param args The settings handed to \code{rFunction}. Defaults to the
+#'   \code{\link{configuration}}. Pass your own list during local development, e.g.
+#'   the configuration with personal credentials instead of the ones in
+#'   \code{app-configuration.json}.
+#'
 #' @return No explicit return value. The function performs side effects including
 #'   reading input data, executing the application function, and writing output files.
 #'   In case of errors, the function logs the error and stores it to an error file
@@ -14,7 +19,7 @@
 #' @details The function performs the following operations in sequence:
 #' \enumerate{
 #'   \item Sets the system timezone to UTC for consistent time handling
-#'   \item Loads application configuration using \code{\link{configuration}}
+#'   \item Loads application configuration using \code{\link{configuration}}, unless \code{args} are given
 #'   \item Reads input data from the source file using \code{\link{readInput}}
 #'   \item Adds the input data to the configuration arguments if data exists
 #'   \item Executes the main application function (\code{rFunction}) with the arguments
@@ -57,16 +62,22 @@
 #'
 #' # Run the application
 #' runMoveAppsApp()
+#'
+#' # Run the application with a personal password instead of the configured one
+#' args <- configuration()
+#' args[["password"]] <- Sys.getenv("MOVEBANK_PASSWORD")
+#' runMoveAppsApp(args)
 #' }
 #'
 #' @export
 # simulate an app run on moveapps.org
-runMoveAppsApp <- function() {
+runMoveAppsApp <- function(args = moveapps::configuration()) {
     tryCatch(
     {
         Sys.setenv(tz="UTC")
 
-        args <- moveapps::configuration()
+        # loads the default configuration here: inside the error handler, before the input
+        force(args)
         data <- moveapps::readInput(moveapps::sourceFile())
         if (!is.null(data)) {
             args[["data"]] <- data
