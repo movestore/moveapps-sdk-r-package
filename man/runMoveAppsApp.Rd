@@ -4,7 +4,13 @@
 \alias{runMoveAppsApp}
 \title{Execute MoveApps Application}
 \usage{
-runMoveAppsApp()
+runMoveAppsApp(args = moveapps::configuration())
+}
+\arguments{
+\item{args}{The settings handed to \code{rFunction}. Defaults to the
+\code{\link{configuration}}. Pass your own list during local development, e.g.
+the configuration with personal credentials instead of the ones in
+\code{app-configuration.json}.}
 }
 \value{
 No explicit return value. The function performs side effects including
@@ -22,7 +28,7 @@ in a production environment.
 The function performs the following operations in sequence:
 \enumerate{
 \item Sets the system timezone to UTC for consistent time handling
-\item Loads application configuration using \code{\link{configuration}}
+\item Loads application configuration using \code{\link{configuration}}, unless \code{args} are given
 \item Reads input data from the source file using \code{\link{readInput}}
 \item Adds the input data to the configuration arguments if data exists
 \item Executes the main application function (\code{rFunction}) with the arguments
@@ -60,6 +66,11 @@ rFunction <- function(data, param1) {
 
 # Run the application
 runMoveAppsApp()
+
+# Run the application with a personal password instead of the configured one
+args <- configuration()
+args[["password"]] <- Sys.getenv("MOVEBANK_PASSWORD")
+runMoveAppsApp(args)
 }
 
 }

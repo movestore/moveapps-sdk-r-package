@@ -19,6 +19,13 @@ ensureBookmarkDirExists <- function() {
   }
 }
 
+# Loads this page again (with its current URL). Not via `session$reload()`: Firefox fills a reloaded
+# page with the inputs of the page before, e.g. the default instead of the restored setting. The
+# browser loads the page anew instead (`reload-page.js`).
+reloadPage <- function(session) {
+  session$sendCustomMessage("ma-reload", list())
+}
+
 # a stored `fileInput()` value: a data frame with each file's `name`, `size`, `type` and `datapath`
 isUploadValue <- function(value) is.data.frame(value) && "datapath" %in% names(value)
 
@@ -202,7 +209,7 @@ restoreShinyBookmark <- function(session) {
         dropUploadsWithoutFile()
         shiny::updateQueryString(queryString = "?_state_id_=latest", session = session)
         logger.debug("[bookmark] Reloading session b/c of detected (not yet loaded) shiny bookmark")
-        session$reload()
+        reloadPage(session)
         return(invisible("reloading"))
       }
     },
@@ -249,7 +256,7 @@ restoreDefaultSettings <- function(session) {
       assign(defaultsToken, TRUE, envir = restoreDefaultsTokens)
       shiny::updateQueryString(queryString = paste0("?", restoreDefaultsQueryParam, "=", defaultsToken), mode = "replace", session = session)
       logger.debug("[bookmark] Reloading session to restore the default settings of this App")
-      session$reload()
+      reloadPage(session)
     },
     error = function(e) {
       logger.error(paste("[bookmark] Could not restore the default settings:", e))

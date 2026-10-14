@@ -5,6 +5,14 @@ All notable changes to the MoveApps R SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.2.0] - 2026-10-13
+
+### Added
+- `runMoveAppsApp(args)` runs the App with the given settings instead of the configuration, e.g. with personal credentials during local development; `runMoveAppsApp()` without arguments loads the configuration as before
+
+### Fixed
+- In Firefox, a `selectInput()` (shiny) showed its default instead of the stored setting, and "Restore default settings" kept the old value of a `selectInput()` or of an input changed on the page, and stored it as the default: Firefox fills a reloaded page with the former selection of every select and the former value of every changed input. The SDK now loads the page anew instead of reloading it
+
 ## [v1.1.0] - 2026-09-30
 
 ### Added
