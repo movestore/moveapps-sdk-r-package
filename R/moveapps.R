@@ -336,11 +336,18 @@ createMoveAppsShinyServer <- function(input, output, session) {
     # set at the start if the user asked for the default settings; they are stored once this App
     # finished starting (see below)
     defaultsRequested <- FALSE
+    # set at the start if this page only reloads to restore the stored settings
+    pageReloading <- FALSE
+    # TRUE once this App finished starting; the result is reported from then on. The page before the
+    # restore reload would report the result of the default settings (a 0-byte artifact, measured with
+    # Open Street Map) and the run must not end with it
+    runStarted <- shiny::reactiveVal(FALSE)
     observeEvent(
       session,
       {
         startState <- moveapps::restoreShinyBookmark(session)
         defaultsRequested <<- identical(startState, "defaults")
+        pageReloading <<- identical(startState, "reloading")
         # `input.json` documents the settings of this App in the workflow (also if they were never
         # stored): write it right away, and again once this App finished starting (see below).
         # A page which is reloading still shows the settings before the restore, and requested
@@ -359,6 +366,7 @@ createMoveAppsShinyServer <- function(input, output, session) {
     # settings which do not fit the input data
     observeEvent(input$ma_startup_settings, {
       onStartupFinished(session, input$ma_startup_settings, defaultsRequested, storeSettings)
+      if (!pageReloading) runStarted(TRUE)
     })
     # Ask for confirmation before deleting the stored settings
     observeEvent(input$ma_restore_defaults, {
@@ -388,8 +396,11 @@ createMoveAppsShinyServer <- function(input, output, session) {
       moveapps::notifyPushBookmark("input.json")
     })
     observe({
+      req(runStarted())
       moveapps::storeResult(result(), moveapps::outputFile())
       moveapps::notifyDone("SHINY")
+      # lets a browser-less run know the result is stored
+      session$sendCustomMessage("ma-run-done", list())
     })
   },
   error = function(e) {
