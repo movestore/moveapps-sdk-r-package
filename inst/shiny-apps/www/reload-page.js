@@ -2,5 +2,6 @@
 // `location.reload()` (shiny's `session$reload()`) would let Firefox fill the reloaded page with the
 // inputs of the page before, e.g. the default instead of the restored setting.
 Shiny.addCustomMessageHandler('ma-reload', function (message) {
+    window.maReloading = true;
     window.location.replace(window.location.href);
 });

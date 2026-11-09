@@ -14,13 +14,6 @@ selectApp <- function(env = parent.frame()) {
   writeAppDir(app, env = env)
 }
 
-# stores "min" for the select input, as MoveApps pushes the stored settings into the App
-storeSetting <- function(appDir) {
-  # the first session already created it, to write `input.json`
-  dir.create(file.path(appDir, "shiny_bookmarks", "latest"), recursive = TRUE, showWarnings = FALSE)
-  saveRDS(list(`shinyModule-unit` = "min"), file.path(appDir, "shiny_bookmarks", "latest", "input.rds"))
-}
-
 test_that("the stored settings are loaded by a new navigation: Firefox fills a reloaded page with the inputs of the page before", {
   skip_on_cran()
   dir <- selectApp()
