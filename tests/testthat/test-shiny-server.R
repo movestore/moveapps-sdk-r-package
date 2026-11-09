@@ -17,17 +17,28 @@ defineShinyModule <- function() {
 mockServerDependencies <- function(startState, env = parent.frame()) {
   received <- new.env()
   received$defaultsRequested <- logical()
+  received$stored <- 0L
+  received$done <- 0L
   local_mocked_bindings(
     restoreShinyBookmark = function(session) invisible(startState),
     onStartupFinished = function(session, startup, defaultsRequested, storeSettings) {
       received$defaultsRequested <- c(received$defaultsRequested, defaultsRequested)
     },
-    storeResult = function(...) NULL,
-    notifyDone = function(...) NULL,
+    # forcing the result makes the observer depend on it, like the real storeResult() does
+    storeResult = function(result, ...) {
+      force(result)
+      received$stored <- received$stored + 1L
+    },
+    notifyDone = function(...) received$done <- received$done + 1L,
     .package = "moveapps",
     .env = env
   )
   received
+}
+
+# a module whose result changes with the input `shinyModule-n`
+defineCountingModule <- function() {
+  assign("shinyModule", function(input, output, session, data = NULL) shiny::reactive(input$n), envir = globalenv())
 }
 
 test_that("createMoveAppsShinyServer stores requested default settings once the start is reported, not at the start", {
@@ -65,6 +76,59 @@ test_that("createMoveAppsShinyServer documents the settings at the start unless 
       expect_equal(received$defaultsRequested, FALSE, label = startState)
     }, session = mock$session)
   }
+})
+
+test_that("createMoveAppsShinyServer notifies done only once the start is reported", {
+  skip_if_not_installed("shiny")
+  defineShinyModule()
+  on.exit(rm("shinyModule", envir = globalenv()), add = TRUE)
+  received <- mockServerDependencies(startState = "none")
+  mock <- recordingSession()
+
+  shiny::testServer(moveapps::createMoveAppsShinyServer, {
+    session$flushReact()
+    expect_equal(received$done, 0L)
+    expect_false("ma-run-done" %in% mock$messages$types)
+
+    session$setInputs(ma_startup_settings = list(settingIds = list("x"), changedIds = list()))
+    expect_equal(received$stored, 1L)
+    expect_equal(received$done, 1L)
+    expect_equal(sum(mock$messages$types == "ma-run-done"), 1L)
+  }, session = mock$session)
+})
+
+test_that("createMoveAppsShinyServer never notifies done from a page that reloads for the restore", {
+  skip_if_not_installed("shiny")
+  defineShinyModule()
+  on.exit(rm("shinyModule", envir = globalenv()), add = TRUE)
+  received <- mockServerDependencies(startState = "reloading")
+  mock <- recordingSession()
+
+  shiny::testServer(moveapps::createMoveAppsShinyServer, {
+    session$flushReact()
+    session$setInputs(ma_startup_settings = list(settingIds = list("x"), changedIds = list()))
+
+    expect_equal(received$stored, 0L)
+    expect_equal(received$done, 0L)
+    expect_false("ma-run-done" %in% mock$messages$types)
+  }, session = mock$session)
+})
+
+test_that("createMoveAppsShinyServer notifies done for every new result after the start", {
+  skip_if_not_installed("shiny")
+  defineCountingModule()
+  on.exit(rm("shinyModule", envir = globalenv()), add = TRUE)
+  received <- mockServerDependencies(startState = "none")
+  mock <- recordingSession()
+
+  shiny::testServer(moveapps::createMoveAppsShinyServer, {
+    session$flushReact()
+    session$setInputs(ma_startup_settings = list(settingIds = list("x"), changedIds = list()))
+    session$setInputs(`shinyModule-n` = 2)
+
+    expect_equal(received$done, 2L)
+    expect_equal(sum(mock$messages$types == "ma-run-done"), 2L)
+  }, session = mock$session)
 })
 
 test_that("createMoveAppsShinyServer keeps the SDK's buttons and internal inputs out of the bookmark", {

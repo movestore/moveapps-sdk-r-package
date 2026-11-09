@@ -5,6 +5,17 @@ All notable changes to the MoveApps R SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.3.0] - 2026-11-09
+
+### Added
+- Console lines `ma-run:done` and `ma-run:disconnected` for MoveApps' headless browser
+
+### Changed
+- A Shiny App stores its result and notifies MoveApps only once it finished starting, never from the page that reloads to restore the stored settings (needs a co-pilot-shiny image with the headless browser)
+
+### Fixed
+- An artifact written while rendering (e.g. in `renderPlot()`) could be stored with 0 bytes when the App's UI was opened with stored settings
+
 ## [v1.2.0] - 2026-10-13
 
 ### Added
