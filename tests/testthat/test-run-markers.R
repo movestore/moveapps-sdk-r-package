@@ -10,17 +10,18 @@ test_that("a run stores the result once, with the stored settings, and its rende
   # arrange
   app <- shinytest2::AppDriver$new(dir, name = "run-markers-store")
   withr::defer(app$stop())
-  # the first session stores after its startup report, the file is the gate
-  waitForFile(file.path(dir, "stored.txt"))
+  # the first session is done once its console says so, which follows storeResult and notifyDone
+  waitForMarker(app, "ma-run:done")
   # what the first session left
-  file.remove(file.path(dir, c("stored.txt", "artifact-at-done.txt")))
+  expect_true(all(file.remove(file.path(dir, c("stored.txt", "artifact-at-done.txt")))))
   storeSetting(dir)
 
   # act
   app$get_chromote_session()$Page$navigate(app$get_url())
-  waitForFile(file.path(dir, "stored.txt"))
-  # notifyDone follows storeResult
-  waitForFile(file.path(dir, "artifact-at-done.txt"))
+  waitForMarker(app, "ma-run:done", n = 2)
+  # a second, wrong write would land after the first
+  # (`wait_for_idle()` needs shinytest2's tracer, which the reloaded page lacks)
+  Sys.sleep(2)
 
   # assert
   expect_equal(readLines(file.path(dir, "stored.txt")), "min")
@@ -38,7 +39,7 @@ test_that("a session that ends while opening leaves 'ma-run:disconnected' in the
   # arrange
   app <- shinytest2::AppDriver$new(dir, name = "run-markers-console")
   withr::defer(app$stop())
-  waitForFile(file.path(dir, "stored.txt"))
+  waitForMarker(app, "ma-run:done")
   storeSetting(dir)
 
   # act

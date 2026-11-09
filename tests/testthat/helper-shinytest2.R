@@ -32,6 +32,16 @@ waitForFile <- function(path, timeout = 10) {
   waitFor(function() file.exists(path), what = path, timeout = timeout)
 }
 
+# waits until the browser console holds `n` lines of `marker` ("ma-run:done" follows notifyDone)
+waitForMarker <- function(app, marker, n = 1, timeout = 10) {
+  waitFor(function() {
+    # console events are processed with a browser round trip, not while R sleeps
+    tryCatch(app$get_js("0"), error = function(e) NULL)
+    logs <- app$get_logs()
+    sum(sub("\n.*", "", logs$message[logs$location == "chromote"]) == marker) >= n
+  }, what = paste(n, marker), timeout = timeout)
+}
+
 # like selectApp(), around the module body `module` (evaluated in `shinyModule(input, output, session, data)`
 # and returning the result reactive). Replaces two SDK functions to show what a run delivers: the stored
 # result lands in `stored.txt`, the artifact at `notifyDone()` in `artifact-at-done.txt`
